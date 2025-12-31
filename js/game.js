@@ -7,9 +7,9 @@ const ctx = canvas.getContext('2d');
 
 // Game Constants
 const GRAVITY = 0.6;
-const FRICTION = 0.8;
+const FRICTION = 0.85;
 const JUMP_FORCE = -14;
-const MOVE_SPEED = 5;
+const MOVE_SPEED = 3;
 
 // Input Handler
 const keys = {
