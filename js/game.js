@@ -19,6 +19,147 @@ const keys = {
 };
 
 // ============================================
+// Sound Manager (Web Audio API)
+// ============================================
+class SoundManager {
+    constructor() {
+        this.audioContext = null;
+        this.muted = false;
+        this.musicGain = null;
+        this.sfxGain = null;
+        this.musicOscillators = [];
+        this.initialized = false;
+    }
+
+    init() {
+        if (this.initialized) return;
+        this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+
+        // Master gains for music and SFX
+        this.musicGain = this.audioContext.createGain();
+        this.musicGain.gain.value = 0.3;
+        this.musicGain.connect(this.audioContext.destination);
+
+        this.sfxGain = this.audioContext.createGain();
+        this.sfxGain.gain.value = 0.5;
+        this.sfxGain.connect(this.audioContext.destination);
+
+        this.initialized = true;
+    }
+
+    playJump() {
+        if (this.muted || !this.initialized) return;
+
+        const osc = this.audioContext.createOscillator();
+        const gain = this.audioContext.createGain();
+
+        osc.connect(gain);
+        gain.connect(this.sfxGain);
+
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(300, this.audioContext.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(600, this.audioContext.currentTime + 0.1);
+
+        gain.gain.setValueAtTime(0.3, this.audioContext.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + 0.15);
+
+        osc.start();
+        osc.stop(this.audioContext.currentTime + 0.15);
+    }
+
+    playLand() {
+        if (this.muted || !this.initialized) return;
+
+        const osc = this.audioContext.createOscillator();
+        const gain = this.audioContext.createGain();
+
+        osc.connect(gain);
+        gain.connect(this.sfxGain);
+
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(150, this.audioContext.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(80, this.audioContext.currentTime + 0.1);
+
+        gain.gain.setValueAtTime(0.2, this.audioContext.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + 0.1);
+
+        osc.start();
+        osc.stop(this.audioContext.currentTime + 0.1);
+    }
+
+    startMusic() {
+        if (!this.initialized) return;
+        this.stopMusic();
+
+        // Simple looping melody
+        const notes = [261.63, 329.63, 392.00, 329.63]; // C4, E4, G4, E4
+        const noteLength = 0.5;
+
+        const playNote = (freq, startTime, duration) => {
+            const osc = this.audioContext.createOscillator();
+            const gain = this.audioContext.createGain();
+
+            osc.connect(gain);
+            gain.connect(this.musicGain);
+
+            osc.type = 'sine';
+            osc.frequency.value = freq;
+
+            gain.gain.setValueAtTime(0, startTime);
+            gain.gain.linearRampToValueAtTime(0.15, startTime + 0.05);
+            gain.gain.linearRampToValueAtTime(0, startTime + duration);
+
+            osc.start(startTime);
+            osc.stop(startTime + duration);
+
+            this.musicOscillators.push(osc);
+        };
+
+        const loopLength = notes.length * noteLength;
+
+        const scheduleLoop = () => {
+            if (this.muted) return;
+
+            const now = this.audioContext.currentTime;
+            notes.forEach((note, i) => {
+                playNote(note, now + i * noteLength, noteLength * 0.9);
+            });
+
+            this.musicTimeout = setTimeout(scheduleLoop, loopLength * 1000);
+        };
+
+        scheduleLoop();
+    }
+
+    stopMusic() {
+        if (this.musicTimeout) {
+            clearTimeout(this.musicTimeout);
+            this.musicTimeout = null;
+        }
+        this.musicOscillators.forEach(osc => {
+            try { osc.stop(); } catch(e) {}
+        });
+        this.musicOscillators = [];
+    }
+
+    toggleMute() {
+        this.muted = !this.muted;
+        if (this.muted) {
+            this.stopMusic();
+            if (this.musicGain) this.musicGain.gain.value = 0;
+            if (this.sfxGain) this.sfxGain.gain.value = 0;
+        } else {
+            if (this.musicGain) this.musicGain.gain.value = 0.3;
+            if (this.sfxGain) this.sfxGain.gain.value = 0.5;
+            this.startMusic();
+        }
+        return this.muted;
+    }
+}
+
+const sound = new SoundManager();
+
+// ============================================
 // Player Class (Mia)
 // ============================================
 class Player {
@@ -48,6 +189,7 @@ class Player {
         if (keys.jump && this.isGrounded) {
             this.velY = JUMP_FORCE;
             this.isGrounded = false;
+            sound.playJump();
         }
 
         // Apply gravity
@@ -56,6 +198,9 @@ class Player {
         // Update position
         this.x += this.velX;
         this.y += this.velY;
+
+        // Track previous grounded state for land sound
+        const wasGrounded = this.isGrounded;
 
         // Reset grounded state before collision check
         this.isGrounded = false;
@@ -72,6 +217,11 @@ class Player {
             this.y = canvas.height - this.height;
             this.velY = 0;
             this.isGrounded = true;
+        }
+
+        // Play land sound when landing
+        if (!wasGrounded && this.isGrounded) {
+            sound.playLand();
         }
     }
 
@@ -243,12 +393,30 @@ function drawUI() {
     ctx.fillStyle = '#a0a0a0';
     ctx.font = '12px "Segoe UI", sans-serif';
     ctx.fillText('Jump on the platforms and explore!', 10, 45);
+
+    // Sound status
+    ctx.fillStyle = sound.muted ? '#e94560' : '#5cb85c';
+    ctx.font = '12px "Segoe UI", sans-serif';
+    const soundStatus = sound.muted ? 'MUTED' : 'SOUND ON';
+    ctx.fillText(`[M] ${soundStatus}`, canvas.width - 100, 25);
 }
 
 // ============================================
 // Input Event Listeners
 // ============================================
+// Initialize sound on first interaction (browser autoplay policy)
+let soundInitialized = false;
+function initSoundOnInteraction() {
+    if (!soundInitialized) {
+        sound.init();
+        sound.startMusic();
+        soundInitialized = true;
+    }
+}
+
 document.addEventListener('keydown', (e) => {
+    initSoundOnInteraction();
+
     switch(e.key.toLowerCase()) {
         case 'a':
         case 'arrowleft':
@@ -263,6 +431,9 @@ document.addEventListener('keydown', (e) => {
         case ' ':
             keys.jump = true;
             e.preventDefault(); // Prevent page scroll on space
+            break;
+        case 'm':
+            sound.toggleMute();
             break;
     }
 });
