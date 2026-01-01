@@ -760,6 +760,11 @@ function drawLevelComplete() {
     ctx.textAlign = 'left'; // Reset alignment
 }
 
+// Get reference to the main title element
+const mainTitle = document.querySelector('h1');
+const originalTitle = "Mia's Adventure";
+const glitchedTitles = ["M̷i̸a̵'̶s̷ ̴A̶d̸v̷e̸n̴t̷u̸r̵e̶", "MIA'S ADVENTURE", "h̷e̸l̵p̶ ̷m̸e̵", "R̶U̷N̸", "IT SEES YOU", "D̷O̸N̵'̶T̷ ̸L̵O̸O̶K̷"];
+
 function drawUI() {
     const level = levels[currentLevel];
 
@@ -779,6 +784,26 @@ function drawUI() {
                 nextGlitchTime = 60 + Math.random() * 420; // 1-8 seconds
             }
         }
+    }
+
+    // Glitch the main HTML title too
+    if (level.glitchTitle && glitchActive) {
+        mainTitle.textContent = glitchedTitles[Math.floor(Math.random() * glitchedTitles.length)];
+        mainTitle.style.color = '#ff0000';
+        mainTitle.style.textShadow = `${Math.random() * 4 - 2}px 0 #8b0000, ${Math.random() * 4 - 2}px 0 #660000`;
+        mainTitle.style.transform = `translateX(${Math.random() * 6 - 3}px)`;
+    } else if (level.glitchTitle) {
+        // Reset to normal when not glitching (but still on scary level)
+        mainTitle.textContent = originalTitle;
+        mainTitle.style.color = '#e94560';
+        mainTitle.style.textShadow = '2px 2px 4px rgba(0,0,0,0.5)';
+        mainTitle.style.transform = 'translateX(0)';
+    } else {
+        // Fully reset on normal levels
+        mainTitle.textContent = originalTitle;
+        mainTitle.style.color = '#e94560';
+        mainTitle.style.textShadow = '2px 2px 4px rgba(0,0,0,0.5)';
+        mainTitle.style.transform = 'translateX(0)';
     }
 
     // Level info with glitch effect
