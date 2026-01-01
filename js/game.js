@@ -368,19 +368,15 @@ class Goal {
         ctx.font = '14px Arial';
         ctx.fillText('★', this.x + 18, this.y + 25);
 
-        // Blood speck near the flag
+        // Blood speck near the flag (soaked into grass)
         if (this.hasBlood) {
+            // Blood stain on the grass - positioned at flag base
+            ctx.fillStyle = '#5a1a1a'; // Darker blood mixed with grass
+            ctx.fillRect(this.x + 15, this.y + this.height - 6, 20, 6);
+
+            // Slightly lighter blood edge
             ctx.fillStyle = '#8b0000';
-            // Small blood drops
-            ctx.beginPath();
-            ctx.arc(this.x + 45, this.y + 50, 3, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.beginPath();
-            ctx.arc(this.x + 50, this.y + 55, 2, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.beginPath();
-            ctx.arc(this.x + 43, this.y + 58, 1.5, 0, Math.PI * 2);
-            ctx.fill();
+            ctx.fillRect(this.x + 18, this.y + this.height - 5, 14, 4);
         }
     }
 
