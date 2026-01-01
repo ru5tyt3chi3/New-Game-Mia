@@ -577,11 +577,11 @@ const levels = [
         bloodPlatformIndex: 6, // The platform with the flag
         platforms: [
             { x: 0, y: 550, w: 120, h: 50 },
-            { x: 180, y: 500, w: 70, h: 20 },
-            { x: 300, y: 440, w: 70, h: 20 },
-            { x: 450, y: 380, w: 70, h: 20 },
-            { x: 300, y: 320, w: 70, h: 20 },
-            { x: 150, y: 260, w: 70, h: 20 },
+            { x: 180, y: 480, w: 100, h: 20 },
+            { x: 350, y: 410, w: 100, h: 20 },
+            { x: 520, y: 340, w: 100, h: 20 },
+            { x: 350, y: 270, w: 100, h: 20 },
+            { x: 520, y: 200, w: 100, h: 20 },
             { x: 600, y: 200, w: 150, h: 25, bloody: true },
         ]
     }
@@ -639,7 +639,7 @@ function loadLevel(levelIndex) {
     // Reset glitch state
     glitchActive = false;
     glitchTimer = 0;
-    nextGlitchTime = level.glitchTitle ? (60 + Math.random() * 420) : 0; // 1-8 seconds at 60fps
+    nextGlitchTime = level.glitchTitle ? (120 + Math.random() * 360) : 0; // 2-8 seconds at 60fps
     glitchDuration = 0;
 
     levelComplete = false;
@@ -773,7 +773,7 @@ function drawUI() {
         glitchTimer++;
         if (!glitchActive && glitchTimer >= nextGlitchTime) {
             glitchActive = true;
-            glitchDuration = 10 + Math.random() * 20; // Glitch for 10-30 frames
+            glitchDuration = 45 + Math.random() * 45; // Glitch for 45-90 frames (~0.75-1.5 sec)
             glitchTimer = 0;
         }
         if (glitchActive) {
@@ -781,17 +781,19 @@ function drawUI() {
             if (glitchDuration <= 0) {
                 glitchActive = false;
                 glitchTimer = 0;
-                nextGlitchTime = 60 + Math.random() * 420; // 1-8 seconds
+                nextGlitchTime = 120 + Math.random() * 360; // 2-8 seconds between glitches
             }
         }
     }
 
-    // Glitch the main HTML title too
+    // Glitch the main HTML title too (change text every 15 frames for readability)
     if (level.glitchTitle && glitchActive) {
-        mainTitle.textContent = glitchedTitles[Math.floor(Math.random() * glitchedTitles.length)];
+        if (Math.floor(glitchDuration) % 15 === 0) {
+            mainTitle.textContent = glitchedTitles[Math.floor(Math.random() * glitchedTitles.length)];
+        }
         mainTitle.style.color = '#ff0000';
-        mainTitle.style.textShadow = `${Math.random() * 4 - 2}px 0 #8b0000, ${Math.random() * 4 - 2}px 0 #660000`;
-        mainTitle.style.transform = `translateX(${Math.random() * 6 - 3}px)`;
+        mainTitle.style.textShadow = `${Math.random() * 2 - 1}px 0 #8b0000, ${Math.random() * 2 - 1}px 0 #660000`;
+        mainTitle.style.transform = `translateX(${Math.random() * 3 - 1.5}px)`;
     } else if (level.glitchTitle) {
         // Reset to normal when not glitching (but still on scary level)
         mainTitle.textContent = originalTitle;
@@ -808,8 +810,8 @@ function drawUI() {
 
     // Level info with glitch effect
     if (level.glitchTitle && glitchActive) {
-        // Glitched bloody title
-        const glitchOffset = Math.random() * 6 - 3;
+        // Glitched bloody title (slower shake)
+        const glitchOffset = Math.sin(glitchDuration * 0.5) * 3;
         const titleText = `Level ${currentLevel + 1}: ${level.name}`;
 
         // Red shadow/ghost
@@ -821,19 +823,20 @@ function drawUI() {
         ctx.fillStyle = '#ff0000';
         ctx.fillText(titleText, 10 + glitchOffset, 25);
 
-        // Blood drip effect on letters
+        // Blood drip effect on letters (static positions)
         ctx.fillStyle = '#8b0000';
         for (let i = 0; i < 5; i++) {
-            const dripX = 15 + Math.random() * 150;
-            const dripH = 3 + Math.random() * 8;
+            const dripX = 20 + i * 30;
+            const dripH = 4 + Math.sin(i + glitchDuration * 0.1) * 3;
             ctx.fillRect(dripX, 26, 2, dripH);
         }
 
-        // Corrupted subtitle
+        // Corrupted subtitle (changes every 15 frames)
         ctx.fillStyle = '#660000';
         ctx.font = '12px "Segoe UI", sans-serif';
         const corruptedTexts = ['GET OUT', 'RUN', 'HELP ME', 'IT SEES YOU', 'DON\'T LOOK'];
-        ctx.fillText(corruptedTexts[Math.floor(Math.random() * corruptedTexts.length)], 10, 45);
+        const textIndex = Math.floor(glitchDuration / 15) % corruptedTexts.length;
+        ctx.fillText(corruptedTexts[textIndex], 10, 45);
     } else {
         // Normal title
         ctx.fillStyle = '#ffffff';
