@@ -504,6 +504,7 @@ let goal = null;
 const player = new Player(100, 300);
 let levelComplete = false;
 let levelTransitionTimer = 0;
+let soundInitialized = false;
 
 function loadLevel(levelIndex) {
     if (levelIndex >= levels.length) {
@@ -678,7 +679,6 @@ function drawUI() {
 // Input Event Listeners
 // ============================================
 // Initialize sound on first interaction (browser autoplay policy)
-let soundInitialized = false;
 function initSoundOnInteraction() {
     if (!soundInitialized) {
         sound.init();
