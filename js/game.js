@@ -708,6 +708,22 @@ document.addEventListener('keydown', (e) => {
             // Restart current level
             loadLevel(currentLevel);
             break;
+        // Debug: Number keys to jump to specific levels
+        case '1':
+        case '2':
+        case '3':
+        case '4':
+        case '5':
+        case '6':
+        case '7':
+        case '8':
+        case '9':
+            const levelNum = parseInt(e.key) - 1;
+            if (levelNum < levels.length) {
+                currentLevel = levelNum;
+                loadLevel(currentLevel);
+            }
+            break;
     }
 });
 
