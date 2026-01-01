@@ -155,6 +155,67 @@ class SoundManager {
         }
         return this.muted;
     }
+
+    startScaryMusic() {
+        if (!this.initialized) return;
+        this.stopMusic();
+
+        // Creepy dissonant drone
+        const playDrone = () => {
+            if (this.muted) return;
+
+            const now = this.audioContext.currentTime;
+
+            // Low ominous drone
+            const drone = this.audioContext.createOscillator();
+            const droneGain = this.audioContext.createGain();
+            drone.connect(droneGain);
+            droneGain.connect(this.musicGain);
+            drone.type = 'sawtooth';
+            drone.frequency.value = 55; // Low A
+            droneGain.gain.setValueAtTime(0.08, now);
+            drone.start(now);
+            drone.stop(now + 4);
+            this.musicOscillators.push(drone);
+
+            // Dissonant high tone
+            const high = this.audioContext.createOscillator();
+            const highGain = this.audioContext.createGain();
+            high.connect(highGain);
+            highGain.connect(this.musicGain);
+            high.type = 'sine';
+            high.frequency.setValueAtTime(440, now);
+            high.frequency.linearRampToValueAtTime(466.16, now + 2); // Slide to dissonant
+            high.frequency.linearRampToValueAtTime(440, now + 4);
+            highGain.gain.setValueAtTime(0.03, now);
+            highGain.gain.linearRampToValueAtTime(0.06, now + 2);
+            highGain.gain.linearRampToValueAtTime(0.03, now + 4);
+            high.start(now);
+            high.stop(now + 4);
+            this.musicOscillators.push(high);
+
+            // Random creepy stabs
+            if (Math.random() > 0.5) {
+                const stab = this.audioContext.createOscillator();
+                const stabGain = this.audioContext.createGain();
+                stab.connect(stabGain);
+                stabGain.connect(this.musicGain);
+                stab.type = 'square';
+                stab.frequency.value = 200 + Math.random() * 100;
+                const stabTime = now + Math.random() * 3;
+                stabGain.gain.setValueAtTime(0, stabTime);
+                stabGain.gain.linearRampToValueAtTime(0.1, stabTime + 0.05);
+                stabGain.gain.linearRampToValueAtTime(0, stabTime + 0.2);
+                stab.start(stabTime);
+                stab.stop(stabTime + 0.3);
+                this.musicOscillators.push(stab);
+            }
+
+            this.musicTimeout = setTimeout(playDrone, 4000);
+        };
+
+        playDrone();
+    }
 }
 
 const sound = new SoundManager();
@@ -294,25 +355,41 @@ class Player {
 // Platform Class
 // ============================================
 class Platform {
-    constructor(x, y, width, height, color = '#4a90a4') {
+    constructor(x, y, width, height, color = '#4a90a4', bloody = false) {
         this.x = x;
         this.y = y;
         this.width = width;
         this.height = height;
         this.color = color;
+        this.bloody = bloody;
     }
 
     draw() {
         // Main platform body
-        ctx.fillStyle = this.color;
+        ctx.fillStyle = this.bloody ? '#2a1a1a' : this.color;
         ctx.fillRect(this.x, this.y, this.width, this.height);
 
-        // Top grass/surface layer
-        ctx.fillStyle = '#5cb85c';
-        ctx.fillRect(this.x, this.y, this.width, 6);
+        // Top grass/surface layer (blood-soaked if bloody)
+        if (this.bloody) {
+            // Dark blood base
+            ctx.fillStyle = '#3a0a0a';
+            ctx.fillRect(this.x, this.y, this.width, 8);
+            // Brighter blood streaks
+            ctx.fillStyle = '#6a0000';
+            ctx.fillRect(this.x + 5, this.y + 1, this.width - 10, 4);
+            // Blood drips
+            ctx.fillStyle = '#8b0000';
+            for (let i = 0; i < this.width; i += 15) {
+                const dripHeight = 3 + Math.sin(i) * 2;
+                ctx.fillRect(this.x + i + 5, this.y + 6, 3, dripHeight);
+            }
+        } else {
+            ctx.fillStyle = '#5cb85c';
+            ctx.fillRect(this.x, this.y, this.width, 6);
+        }
 
         // Platform edge highlights
-        ctx.fillStyle = 'rgba(255,255,255,0.1)';
+        ctx.fillStyle = this.bloody ? 'rgba(139,0,0,0.3)' : 'rgba(255,255,255,0.1)';
         ctx.fillRect(this.x, this.y, this.width, 2);
 
         // Platform bottom shadow
@@ -488,6 +565,25 @@ const levels = [
             { x: 480, y: 300, w: 80, h: 20 },
             { x: 350, y: 350, w: 150, h: 25 },
         ]
+    },
+    // Level 7 - IT GETS WORSE
+    {
+        name: "RUN",
+        playerStart: { x: 50, y: 480 },
+        goal: { x: 650, y: 140 },
+        scaryMusic: true,
+        hasBlood: true,
+        glitchTitle: true,
+        bloodPlatformIndex: 6, // The platform with the flag
+        platforms: [
+            { x: 0, y: 550, w: 120, h: 50 },
+            { x: 180, y: 500, w: 70, h: 20 },
+            { x: 300, y: 440, w: 70, h: 20 },
+            { x: 450, y: 380, w: 70, h: 20 },
+            { x: 300, y: 320, w: 70, h: 20 },
+            { x: 150, y: 260, w: 70, h: 20 },
+            { x: 600, y: 200, w: 150, h: 25, bloody: true },
+        ]
     }
 ];
 
@@ -502,6 +598,12 @@ let levelComplete = false;
 let levelTransitionTimer = 0;
 let soundInitialized = false;
 
+// Glitch effect state
+let glitchActive = false;
+let glitchTimer = 0;
+let nextGlitchTime = 0;
+let glitchDuration = 0;
+
 function loadLevel(levelIndex) {
     if (levelIndex >= levels.length) {
         // Game complete - restart from level 1
@@ -511,9 +613,9 @@ function loadLevel(levelIndex) {
 
     const level = levels[levelIndex];
 
-    // Create platforms
+    // Create platforms (with bloody flag support)
     platforms = level.platforms.map(p =>
-        new Platform(p.x, p.y, p.w, p.h, '#3d5a80')
+        new Platform(p.x, p.y, p.w, p.h, '#3d5a80', p.bloody || false)
     );
 
     // Create goal with blood flag
@@ -528,9 +630,17 @@ function loadLevel(levelIndex) {
     // Handle music for special levels
     if (level.noMusic) {
         sound.stopMusic();
+    } else if (level.scaryMusic && soundInitialized && !sound.muted) {
+        sound.startScaryMusic();
     } else if (soundInitialized && !sound.muted) {
         sound.startMusic();
     }
+
+    // Reset glitch state
+    glitchActive = false;
+    glitchTimer = 0;
+    nextGlitchTime = level.glitchTitle ? (60 + Math.random() * 420) : 0; // 1-8 seconds at 60fps
+    glitchDuration = 0;
 
     levelComplete = false;
     levelTransitionTimer = 0;
@@ -651,14 +761,64 @@ function drawLevelComplete() {
 }
 
 function drawUI() {
-    // Level info
-    ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 16px "Segoe UI", sans-serif';
-    ctx.fillText(`Level ${currentLevel + 1}: ${levels[currentLevel].name}`, 10, 25);
+    const level = levels[currentLevel];
 
-    ctx.fillStyle = '#a0a0a0';
-    ctx.font = '12px "Segoe UI", sans-serif';
-    ctx.fillText('Reach the golden flag!', 10, 45);
+    // Handle glitch timing for glitchTitle levels
+    if (level.glitchTitle) {
+        glitchTimer++;
+        if (!glitchActive && glitchTimer >= nextGlitchTime) {
+            glitchActive = true;
+            glitchDuration = 10 + Math.random() * 20; // Glitch for 10-30 frames
+            glitchTimer = 0;
+        }
+        if (glitchActive) {
+            glitchDuration--;
+            if (glitchDuration <= 0) {
+                glitchActive = false;
+                glitchTimer = 0;
+                nextGlitchTime = 60 + Math.random() * 420; // 1-8 seconds
+            }
+        }
+    }
+
+    // Level info with glitch effect
+    if (level.glitchTitle && glitchActive) {
+        // Glitched bloody title
+        const glitchOffset = Math.random() * 6 - 3;
+        const titleText = `Level ${currentLevel + 1}: ${level.name}`;
+
+        // Red shadow/ghost
+        ctx.fillStyle = '#8b0000';
+        ctx.font = 'bold 16px "Segoe UI", sans-serif';
+        ctx.fillText(titleText, 10 + glitchOffset + 2, 25 + 1);
+
+        // Main glitched text
+        ctx.fillStyle = '#ff0000';
+        ctx.fillText(titleText, 10 + glitchOffset, 25);
+
+        // Blood drip effect on letters
+        ctx.fillStyle = '#8b0000';
+        for (let i = 0; i < 5; i++) {
+            const dripX = 15 + Math.random() * 150;
+            const dripH = 3 + Math.random() * 8;
+            ctx.fillRect(dripX, 26, 2, dripH);
+        }
+
+        // Corrupted subtitle
+        ctx.fillStyle = '#660000';
+        ctx.font = '12px "Segoe UI", sans-serif';
+        const corruptedTexts = ['GET OUT', 'RUN', 'HELP ME', 'IT SEES YOU', 'DON\'T LOOK'];
+        ctx.fillText(corruptedTexts[Math.floor(Math.random() * corruptedTexts.length)], 10, 45);
+    } else {
+        // Normal title
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 16px "Segoe UI", sans-serif';
+        ctx.fillText(`Level ${currentLevel + 1}: ${level.name}`, 10, 25);
+
+        ctx.fillStyle = '#a0a0a0';
+        ctx.font = '12px "Segoe UI", sans-serif';
+        ctx.fillText('Reach the golden flag!', 10, 45);
+    }
 
     // Sound status
     ctx.fillStyle = sound.muted ? '#e94560' : '#5cb85c';
