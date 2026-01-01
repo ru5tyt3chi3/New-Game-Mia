@@ -216,6 +216,41 @@ class SoundManager {
 
         playDrone();
     }
+
+    playWhisper() {
+        if (this.muted || !this.initialized) return;
+
+        // Creepy whisper-like sound using filtered noise
+        const bufferSize = this.audioContext.sampleRate * 0.5;
+        const buffer = this.audioContext.createBuffer(1, bufferSize, this.audioContext.sampleRate);
+        const data = buffer.getChannelData(0);
+
+        // Generate noise
+        for (let i = 0; i < bufferSize; i++) {
+            data[i] = (Math.random() * 2 - 1) * 0.3;
+        }
+
+        const noise = this.audioContext.createBufferSource();
+        noise.buffer = buffer;
+
+        // Filter to make it sound like whisper
+        const filter = this.audioContext.createBiquadFilter();
+        filter.type = 'bandpass';
+        filter.frequency.value = 800;
+        filter.Q.value = 1;
+
+        const gain = this.audioContext.createGain();
+        gain.gain.setValueAtTime(0, this.audioContext.currentTime);
+        gain.gain.linearRampToValueAtTime(0.15, this.audioContext.currentTime + 0.1);
+        gain.gain.linearRampToValueAtTime(0, this.audioContext.currentTime + 0.4);
+
+        noise.connect(filter);
+        filter.connect(gain);
+        gain.connect(this.sfxGain);
+
+        noise.start();
+        noise.stop(this.audioContext.currentTime + 0.5);
+    }
 }
 
 const sound = new SoundManager();
@@ -574,7 +609,7 @@ const levels = [
         scaryMusic: true,
         hasBlood: true,
         glitchTitle: true,
-        bloodPlatformIndex: 6, // The platform with the flag
+        triggerCutscene: true, // Triggers cutscene after completion
         platforms: [
             { x: 0, y: 550, w: 120, h: 50 },
             { x: 180, y: 480, w: 100, h: 20 },
@@ -583,6 +618,22 @@ const levels = [
             { x: 350, y: 270, w: 100, h: 20 },
             { x: 520, y: 200, w: 100, h: 20 },
             { x: 600, y: 200, w: 150, h: 25, bloody: true },
+        ]
+    },
+    // Level 8 - Back to Normal
+    {
+        name: "New Dawn",
+        playerStart: { x: 50, y: 480 },
+        goal: { x: 720, y: 90 },
+        platforms: [
+            { x: 0, y: 550, w: 200, h: 50 },
+            { x: 250, y: 480, w: 120, h: 25 },
+            { x: 450, y: 420, w: 120, h: 25 },
+            { x: 250, y: 350, w: 120, h: 25 },
+            { x: 50, y: 280, w: 120, h: 25 },
+            { x: 250, y: 210, w: 120, h: 25 },
+            { x: 500, y: 210, w: 120, h: 25 },
+            { x: 650, y: 150, w: 150, h: 25 },
         ]
     }
 ];
@@ -603,6 +654,17 @@ let glitchActive = false;
 let glitchTimer = 0;
 let nextGlitchTime = 0;
 let glitchDuration = 0;
+
+// Cutscene state
+let cutsceneActive = false;
+let cutsceneTimer = 0;
+let cutscenePhase = 0;
+const cutsceneMessages = [
+    { text: "wait...", duration: 120 },
+    { text: "its not too late", duration: 150 },
+    { text: "log off", duration: 120 },
+    { text: "fast", duration: 100 }
+];
 
 function loadLevel(levelIndex) {
     if (levelIndex >= levels.length) {
@@ -700,6 +762,13 @@ function drawBackground() {
 // Game Loop
 // ============================================
 function gameLoop() {
+    // Handle cutscene
+    if (cutsceneActive) {
+        drawCutscene();
+        requestAnimationFrame(gameLoop);
+        return;
+    }
+
     // Clear and draw background
     drawBackground();
 
@@ -720,8 +789,18 @@ function gameLoop() {
         drawLevelComplete();
 
         if (levelTransitionTimer > 120) { // 2 seconds at 60fps
-            currentLevel++;
-            loadLevel(currentLevel);
+            const level = levels[currentLevel];
+            // Check if this level triggers cutscene
+            if (level.triggerCutscene) {
+                cutsceneActive = true;
+                cutsceneTimer = 0;
+                cutscenePhase = 0;
+                sound.stopMusic();
+                levelComplete = false;
+            } else {
+                currentLevel++;
+                loadLevel(currentLevel);
+            }
         }
     } else {
         // Update and draw player
@@ -758,6 +837,102 @@ function drawLevelComplete() {
     ctx.fillText(nextText, canvas.width / 2, canvas.height / 2 + 30);
 
     ctx.textAlign = 'left'; // Reset alignment
+}
+
+function drawCutscene() {
+    cutsceneTimer++;
+
+    // Black background
+    ctx.fillStyle = '#000000';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Calculate total duration for all phases
+    let phaseStartTime = 0;
+    for (let i = 0; i < cutscenePhase; i++) {
+        phaseStartTime += cutsceneMessages[i].duration + 60; // 60 frames gap between messages
+    }
+
+    const currentPhaseTime = cutsceneTimer - phaseStartTime;
+
+    // Check if we should move to next phase
+    if (cutscenePhase < cutsceneMessages.length) {
+        const currentMessage = cutsceneMessages[cutscenePhase];
+
+        // Play whisper at start of each phase
+        if (currentPhaseTime === 1) {
+            sound.playWhisper();
+        }
+
+        // Draw large Mia face in center (creepy close-up)
+        const faceX = canvas.width / 2;
+        const faceY = canvas.height / 2 - 50;
+        const faceScale = 8;
+
+        // Slight shake effect
+        const shakeX = Math.sin(cutsceneTimer * 0.1) * 2;
+        const shakeY = Math.cos(cutsceneTimer * 0.15) * 1;
+
+        // Large body/face
+        ctx.fillStyle = '#e94560';
+        ctx.fillRect(faceX - 64 + shakeX, faceY - 96 + shakeY, 128, 192);
+
+        // Large eye (staring)
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(faceX + 24 + shakeX, faceY - 36 + shakeY, 24, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Pupil (follows slightly, creepy)
+        ctx.fillStyle = '#1a1a2e';
+        const pupilOffsetX = Math.sin(cutsceneTimer * 0.05) * 4;
+        const pupilOffsetY = Math.cos(cutsceneTimer * 0.07) * 2;
+        ctx.beginPath();
+        ctx.arc(faceX + 24 + pupilOffsetX + shakeX, faceY - 36 + pupilOffsetY + shakeY, 12, 0, Math.PI * 2);
+        ctx.fill();
+
+        // No smile - straight line (serious/creepy)
+        ctx.strokeStyle = '#1a1a2e';
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.moveTo(faceX - 24 + shakeX, faceY + 20 + shakeY);
+        ctx.lineTo(faceX + 24 + shakeX, faceY + 20 + shakeY);
+        ctx.stroke();
+
+        // Caption at bottom
+        if (currentPhaseTime > 30) { // Slight delay before text appears
+            const fadeIn = Math.min(1, (currentPhaseTime - 30) / 30);
+            ctx.fillStyle = `rgba(139, 0, 0, ${fadeIn})`;
+            ctx.font = 'italic 32px "Segoe UI", sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText(`"${currentMessage.text}"`, canvas.width / 2, canvas.height - 80);
+            ctx.textAlign = 'left';
+        }
+
+        // Move to next phase
+        if (currentPhaseTime > currentMessage.duration + 60) {
+            cutscenePhase++;
+        }
+    } else {
+        // Cutscene complete - fade to black then go to level 8
+        const fadeOutTime = cutsceneTimer - phaseStartTime;
+
+        if (fadeOutTime < 60) {
+            // Just black screen
+            ctx.fillStyle = '#000000';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+        } else {
+            // End cutscene and go to level 8
+            cutsceneActive = false;
+            currentLevel++;
+            loadLevel(currentLevel);
+
+            // Reset main title
+            mainTitle.textContent = originalTitle;
+            mainTitle.style.color = '#e94560';
+            mainTitle.style.textShadow = '2px 2px 4px rgba(0,0,0,0.5)';
+            mainTitle.style.transform = 'translateX(0)';
+        }
+    }
 }
 
 // Get reference to the main title element
