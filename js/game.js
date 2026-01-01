@@ -325,12 +325,13 @@ class Platform {
 // Goal Class (Level Exit)
 // ============================================
 class Goal {
-    constructor(x, y) {
+    constructor(x, y, hasBlood = false) {
         this.x = x;
         this.y = y;
         this.width = 40;
         this.height = 60;
         this.animFrame = 0;
+        this.hasBlood = hasBlood;
     }
 
     update() {
@@ -338,21 +339,23 @@ class Goal {
     }
 
     draw() {
-        // Glowing effect
-        const glow = Math.sin(this.animFrame) * 0.3 + 0.7;
+        // Glowing effect (dimmer if creepy level)
+        const glow = this.hasBlood ? 0.4 : Math.sin(this.animFrame) * 0.3 + 0.7;
 
-        // Outer glow
-        ctx.fillStyle = `rgba(255, 215, 0, ${glow * 0.3})`;
-        ctx.beginPath();
-        ctx.arc(this.x + this.width/2, this.y + this.height/2, 40, 0, Math.PI * 2);
-        ctx.fill();
+        // Outer glow (no glow on creepy level)
+        if (!this.hasBlood) {
+            ctx.fillStyle = `rgba(255, 215, 0, ${glow * 0.3})`;
+            ctx.beginPath();
+            ctx.arc(this.x + this.width/2, this.y + this.height/2, 40, 0, Math.PI * 2);
+            ctx.fill();
+        }
 
         // Flag pole
-        ctx.fillStyle = '#8B4513';
+        ctx.fillStyle = this.hasBlood ? '#5a3a1a' : '#8B4513';
         ctx.fillRect(this.x + 5, this.y, 6, this.height);
 
-        // Flag
-        ctx.fillStyle = `rgba(255, 215, 0, ${glow})`;
+        // Flag (duller on creepy level)
+        ctx.fillStyle = this.hasBlood ? `rgba(180, 150, 50, ${glow})` : `rgba(255, 215, 0, ${glow})`;
         ctx.beginPath();
         ctx.moveTo(this.x + 11, this.y + 5);
         ctx.lineTo(this.x + 40, this.y + 20);
@@ -361,9 +364,24 @@ class Goal {
         ctx.fill();
 
         // Star on flag
-        ctx.fillStyle = '#fff';
+        ctx.fillStyle = this.hasBlood ? '#aaa' : '#fff';
         ctx.font = '14px Arial';
         ctx.fillText('★', this.x + 18, this.y + 25);
+
+        // Blood speck near the flag
+        if (this.hasBlood) {
+            ctx.fillStyle = '#8b0000';
+            // Small blood drops
+            ctx.beginPath();
+            ctx.arc(this.x + 45, this.y + 50, 3, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(this.x + 50, this.y + 55, 2, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(this.x + 43, this.y + 58, 1.5, 0, Math.PI * 2);
+            ctx.fill();
+        }
     }
 
     checkCollision(player) {
@@ -457,6 +475,23 @@ const levels = [
             { x: 500, y: 130, w: 100, h: 25 },
             { x: 350, y: 90, w: 100, h: 25 },
         ]
+    },
+    // Level 6 - Something's Wrong...
+    {
+        name: "...",
+        playerStart: { x: 50, y: 520 },
+        goal: { x: 400, y: 290 },
+        noMusic: true,
+        hasBlood: true,
+        platforms: [
+            { x: 0, y: 550, w: 150, h: 50 },
+            { x: 200, y: 500, w: 80, h: 20 },
+            { x: 330, y: 450, w: 80, h: 20 },
+            { x: 480, y: 400, w: 80, h: 20 },
+            { x: 620, y: 350, w: 80, h: 20 },
+            { x: 480, y: 300, w: 80, h: 20 },
+            { x: 350, y: 350, w: 150, h: 25 },
+        ]
     }
 ];
 
@@ -484,14 +519,21 @@ function loadLevel(levelIndex) {
         new Platform(p.x, p.y, p.w, p.h, '#3d5a80')
     );
 
-    // Create goal
-    goal = new Goal(level.goal.x, level.goal.y);
+    // Create goal with blood flag
+    goal = new Goal(level.goal.x, level.goal.y, level.hasBlood);
 
     // Reset player position
     player.x = level.playerStart.x;
     player.y = level.playerStart.y;
     player.velX = 0;
     player.velY = 0;
+
+    // Handle music for special levels
+    if (level.noMusic) {
+        sound.stopMusic();
+    } else if (soundInitialized && !sound.muted) {
+        sound.startMusic();
+    }
 
     levelComplete = false;
     levelTransitionTimer = 0;
