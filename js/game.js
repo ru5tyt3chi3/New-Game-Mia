@@ -322,23 +322,207 @@ class Platform {
 }
 
 // ============================================
+// Goal Class (Level Exit)
+// ============================================
+class Goal {
+    constructor(x, y) {
+        this.x = x;
+        this.y = y;
+        this.width = 40;
+        this.height = 60;
+        this.animFrame = 0;
+    }
+
+    update() {
+        this.animFrame += 0.05;
+    }
+
+    draw() {
+        // Glowing effect
+        const glow = Math.sin(this.animFrame) * 0.3 + 0.7;
+
+        // Outer glow
+        ctx.fillStyle = `rgba(255, 215, 0, ${glow * 0.3})`;
+        ctx.beginPath();
+        ctx.arc(this.x + this.width/2, this.y + this.height/2, 40, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Flag pole
+        ctx.fillStyle = '#8B4513';
+        ctx.fillRect(this.x + 5, this.y, 6, this.height);
+
+        // Flag
+        ctx.fillStyle = `rgba(255, 215, 0, ${glow})`;
+        ctx.beginPath();
+        ctx.moveTo(this.x + 11, this.y + 5);
+        ctx.lineTo(this.x + 40, this.y + 20);
+        ctx.lineTo(this.x + 11, this.y + 35);
+        ctx.closePath();
+        ctx.fill();
+
+        // Star on flag
+        ctx.fillStyle = '#fff';
+        ctx.font = '14px Arial';
+        ctx.fillText('★', this.x + 18, this.y + 25);
+    }
+
+    checkCollision(player) {
+        return player.x < this.x + this.width &&
+               player.x + player.width > this.x &&
+               player.y < this.y + this.height &&
+               player.y + player.height > this.y;
+    }
+}
+
+// ============================================
+// Level Definitions
+// ============================================
+const levels = [
+    // Level 1 - Tutorial
+    {
+        name: "Getting Started",
+        playerStart: { x: 50, y: 480 },
+        goal: { x: 730, y: 490 },
+        platforms: [
+            { x: 0, y: 550, w: 800, h: 50 },
+            { x: 200, y: 480, w: 120, h: 25 },
+            { x: 400, y: 420, w: 120, h: 25 },
+            { x: 600, y: 480, w: 120, h: 25 },
+        ]
+    },
+    // Level 2 - Climb Up
+    {
+        name: "The Ascent",
+        playerStart: { x: 50, y: 480 },
+        goal: { x: 370, y: 40 },
+        platforms: [
+            { x: 0, y: 550, w: 200, h: 50 },
+            { x: 100, y: 450, w: 150, h: 25 },
+            { x: 300, y: 380, w: 150, h: 25 },
+            { x: 500, y: 310, w: 150, h: 25 },
+            { x: 280, y: 240, w: 150, h: 25 },
+            { x: 80, y: 170, w: 150, h: 25 },
+            { x: 350, y: 100, w: 150, h: 25 },
+        ]
+    },
+    // Level 3 - Gaps
+    {
+        name: "Mind the Gap",
+        playerStart: { x: 50, y: 480 },
+        goal: { x: 720, y: 90 },
+        platforms: [
+            { x: 0, y: 550, w: 150, h: 50 },
+            { x: 220, y: 550, w: 100, h: 50 },
+            { x: 400, y: 500, w: 100, h: 25 },
+            { x: 550, y: 430, w: 100, h: 25 },
+            { x: 350, y: 350, w: 100, h: 25 },
+            { x: 150, y: 280, w: 100, h: 25 },
+            { x: 350, y: 210, w: 100, h: 25 },
+            { x: 550, y: 150, w: 100, h: 25 },
+            { x: 700, y: 150, w: 100, h: 25 },
+        ]
+    },
+    // Level 4 - Zigzag
+    {
+        name: "Zigzag Path",
+        playerStart: { x: 50, y: 100 },
+        goal: { x: 700, y: 490 },
+        platforms: [
+            { x: 0, y: 150, w: 180, h: 25 },
+            { x: 250, y: 200, w: 150, h: 25 },
+            { x: 470, y: 250, w: 150, h: 25 },
+            { x: 620, y: 320, w: 180, h: 25 },
+            { x: 400, y: 390, w: 150, h: 25 },
+            { x: 180, y: 460, w: 150, h: 25 },
+            { x: 400, y: 530, w: 150, h: 25 },
+            { x: 620, y: 550, w: 180, h: 50 },
+        ]
+    },
+    // Level 5 - Final Challenge
+    {
+        name: "The Summit",
+        playerStart: { x: 400, y: 520 },
+        goal: { x: 380, y: 30 },
+        platforms: [
+            { x: 300, y: 550, w: 200, h: 50 },
+            { x: 50, y: 480, w: 120, h: 25 },
+            { x: 630, y: 480, w: 120, h: 25 },
+            { x: 150, y: 400, w: 120, h: 25 },
+            { x: 530, y: 400, w: 120, h: 25 },
+            { x: 350, y: 340, w: 100, h: 25 },
+            { x: 150, y: 270, w: 100, h: 25 },
+            { x: 550, y: 270, w: 100, h: 25 },
+            { x: 350, y: 200, w: 100, h: 25 },
+            { x: 200, y: 130, w: 100, h: 25 },
+            { x: 500, y: 130, w: 100, h: 25 },
+            { x: 350, y: 90, w: 100, h: 25 },
+        ]
+    }
+];
+
+// ============================================
 // Game State
 // ============================================
+let currentLevel = 0;
+let platforms = [];
+let goal = null;
 const player = new Player(100, 300);
+let levelComplete = false;
+let levelTransitionTimer = 0;
 
-const platforms = [
-    // Ground platform
-    new Platform(0, 550, 800, 50, '#3d5a80'),
+function loadLevel(levelIndex) {
+    if (levelIndex >= levels.length) {
+        // Game complete - restart from level 1
+        currentLevel = 0;
+        levelIndex = 0;
+    }
 
-    // Floating platforms - create a path upward
-    new Platform(50, 450, 150, 25, '#3d5a80'),
-    new Platform(280, 380, 150, 25, '#3d5a80'),
-    new Platform(500, 320, 150, 25, '#3d5a80'),
-    new Platform(300, 250, 200, 25, '#3d5a80'),
-    new Platform(50, 180, 150, 25, '#3d5a80'),
-    new Platform(600, 180, 180, 25, '#3d5a80'),
-    new Platform(300, 100, 200, 25, '#3d5a80'),
-];
+    const level = levels[levelIndex];
+
+    // Create platforms
+    platforms = level.platforms.map(p =>
+        new Platform(p.x, p.y, p.w, p.h, '#3d5a80')
+    );
+
+    // Create goal
+    goal = new Goal(level.goal.x, level.goal.y);
+
+    // Reset player position
+    player.x = level.playerStart.x;
+    player.y = level.playerStart.y;
+    player.velX = 0;
+    player.velY = 0;
+
+    levelComplete = false;
+    levelTransitionTimer = 0;
+}
+
+// Add level complete sound to SoundManager
+SoundManager.prototype.playLevelComplete = function() {
+    if (this.muted || !this.initialized) return;
+
+    const notes = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6
+    notes.forEach((freq, i) => {
+        const osc = this.audioContext.createOscillator();
+        const gain = this.audioContext.createGain();
+
+        osc.connect(gain);
+        gain.connect(this.sfxGain);
+
+        osc.type = 'sine';
+        osc.frequency.value = freq;
+
+        const startTime = this.audioContext.currentTime + i * 0.15;
+        gain.gain.setValueAtTime(0.3, startTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, startTime + 0.3);
+
+        osc.start(startTime);
+        osc.stop(startTime + 0.3);
+    });
+};
+
+// Initialize first level
+loadLevel(0);
 
 // ============================================
 // Background Drawing
@@ -375,9 +559,32 @@ function gameLoop() {
         platform.draw();
     }
 
-    // Update and draw player
-    player.update(platforms);
-    player.draw();
+    // Update and draw goal
+    if (goal) {
+        goal.update();
+        goal.draw();
+    }
+
+    // Handle level complete state
+    if (levelComplete) {
+        levelTransitionTimer++;
+        drawLevelComplete();
+
+        if (levelTransitionTimer > 120) { // 2 seconds at 60fps
+            currentLevel++;
+            loadLevel(currentLevel);
+        }
+    } else {
+        // Update and draw player
+        player.update(platforms);
+        player.draw();
+
+        // Check goal collision
+        if (goal && goal.checkCollision(player)) {
+            levelComplete = true;
+            sound.playLevelComplete();
+        }
+    }
 
     // Draw UI
     drawUI();
@@ -385,20 +592,44 @@ function gameLoop() {
     requestAnimationFrame(gameLoop);
 }
 
-function drawUI() {
+function drawLevelComplete() {
+    // Darken background
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Level complete text
+    ctx.fillStyle = '#ffd700';
+    ctx.font = 'bold 48px "Segoe UI", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('Level Complete!', canvas.width / 2, canvas.height / 2 - 20);
+
     ctx.fillStyle = '#ffffff';
-    ctx.font = '14px "Segoe UI", sans-serif';
-    ctx.fillText('Welcome to Mia\'s Adventure!', 10, 25);
+    ctx.font = '24px "Segoe UI", sans-serif';
+    const nextText = currentLevel + 1 >= levels.length ? 'Restarting...' : 'Next level...';
+    ctx.fillText(nextText, canvas.width / 2, canvas.height / 2 + 30);
+
+    ctx.textAlign = 'left'; // Reset alignment
+}
+
+function drawUI() {
+    // Level info
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 16px "Segoe UI", sans-serif';
+    ctx.fillText(`Level ${currentLevel + 1}: ${levels[currentLevel].name}`, 10, 25);
 
     ctx.fillStyle = '#a0a0a0';
     ctx.font = '12px "Segoe UI", sans-serif';
-    ctx.fillText('Jump on the platforms and explore!', 10, 45);
+    ctx.fillText('Reach the golden flag!', 10, 45);
 
     // Sound status
     ctx.fillStyle = sound.muted ? '#e94560' : '#5cb85c';
     ctx.font = '12px "Segoe UI", sans-serif';
     const soundStatus = sound.muted ? 'MUTED' : 'SOUND ON';
     ctx.fillText(`[M] ${soundStatus}`, canvas.width - 100, 25);
+
+    // Level progress
+    ctx.fillStyle = '#a0a0a0';
+    ctx.fillText(`${currentLevel + 1}/${levels.length}`, canvas.width - 100, 45);
 }
 
 // ============================================
@@ -434,6 +665,10 @@ document.addEventListener('keydown', (e) => {
             break;
         case 'm':
             sound.toggleMute();
+            break;
+        case 'r':
+            // Restart current level
+            loadLevel(currentLevel);
             break;
     }
 });
