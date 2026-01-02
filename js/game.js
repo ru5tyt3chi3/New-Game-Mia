@@ -4,7 +4,7 @@
 
 // Build Info (for debugging - set DEBUG_MODE to false for release)
 const BUILD_VERSION = "0.1.0";
-const BUILD_NUMBER = 12;
+const BUILD_NUMBER = 13;
 const BUILD_DATE = "2026-01-02";
 const DEBUG_MODE = true;
 
@@ -866,6 +866,19 @@ const choice2Responses = [
     { text: "You seem capable enough!", speaker: "Narrator" }
 ];
 
+// Level 8 phone call messages (after cutscene)
+let level8PhoneTriggered = false;
+const level8NarratorMessages = [
+    { text: "Sorry 'bout that...", speaker: "Narrator" },
+    { text: "That's a bug.", speaker: "Narrator" },
+    { text: "We're still tryna sort that out.", speaker: "Narrator" },
+    { text: "You know...", speaker: "Narrator" },
+    { text: "Bugs 'n all that 're in demos, right?", speaker: "Narrator" }
+];
+let level8MessagePhase = 0;
+let level8MessageTimer = 0;
+let level8NarratorActive = false;
+
 function loadLevel(levelIndex) {
     if (levelIndex >= levels.length) {
         // Game complete - restart from level 1
@@ -903,6 +916,14 @@ function loadLevel(levelIndex) {
     glitchTimer = 0;
     nextGlitchTime = level.glitchTitle ? (120 + Math.random() * 360) : 0; // 2-8 seconds at 60fps
     glitchDuration = 0;
+
+    // Trigger Level 8 phone call after cutscene
+    if (levelIndex === 7 && !level8PhoneTriggered) {
+        level8PhoneTriggered = true;
+        phoneRinging = true;
+        phoneAnswered = false;
+        phoneRingTimer = 0;
+    }
 
     levelComplete = false;
     levelTransitionTimer = 0;
@@ -1166,6 +1187,11 @@ function gameLoop() {
         choiceMessageTimer++;
     }
 
+    // Handle Level 8 narrator dialogue
+    if (level8NarratorActive) {
+        level8MessageTimer++;
+    }
+
     // Clear and draw background
     drawBackground();
 
@@ -1201,7 +1227,7 @@ function gameLoop() {
         }
     } else {
         // Update and draw player (freeze during narrator dialogue)
-        const isInDialogue = narratorActive || dialogueChoiceActive || choiceMessagePhase > 0;
+        const isInDialogue = narratorActive || dialogueChoiceActive || choiceMessagePhase > 0 || level8NarratorActive;
         if (!isInDialogue) {
             player.update(platforms);
         }
@@ -1444,24 +1470,75 @@ function drawUI() {
 }
 
 function drawMiniPhone() {
-    let phoneX = canvas.width - 70;
-    let phoneY = canvas.height - 75;
+    const cornerX = canvas.width - 70;
+    const cornerY = canvas.height - 75;
+    const centerX = canvas.width / 2 - 27;
+    const centerY = canvas.height / 2 - 40;
     const baseW = 55;
     const baseH = 35;
 
-    // Ringing animation - shake effect
-    if (phoneRinging && !phoneAnswered) {
-        const shakeIntensity = Math.sin(phoneRingTimer * 0.5) * 2;
-        phoneX += shakeIntensity;
-        phoneY += Math.cos(phoneRingTimer * 0.7) * 1;
+    let phoneX = cornerX;
+    let phoneY = cornerY;
+    let scale = 1;
 
-        // Glowing ring indicator
+    // Ringing animation - pop up in center then shrink to corner
+    if (phoneRinging && !phoneAnswered) {
+        // Animation phases:
+        // 0-30 frames: pop up to center and scale up
+        // 30-180 frames: stay in center, shake
+        // 180+ frames: shrink back to corner
+        const popUpDuration = 30;
+        const stayDuration = 150;
+        const shrinkStart = popUpDuration + stayDuration;
+        const shrinkDuration = 60;
+
+        if (phoneRingTimer < popUpDuration) {
+            // Pop up phase - ease out
+            const t = phoneRingTimer / popUpDuration;
+            const easeOut = 1 - Math.pow(1 - t, 3);
+            phoneX = cornerX + (centerX - cornerX) * easeOut;
+            phoneY = cornerY + (centerY - cornerY) * easeOut;
+            scale = 1 + 1.5 * easeOut;
+        } else if (phoneRingTimer < shrinkStart) {
+            // Stay in center phase
+            phoneX = centerX;
+            phoneY = centerY;
+            scale = 2.5;
+            // Shake effect
+            const shakeIntensity = Math.sin(phoneRingTimer * 0.5) * 4;
+            phoneX += shakeIntensity;
+            phoneY += Math.cos(phoneRingTimer * 0.7) * 2;
+        } else {
+            // Shrink back to corner
+            const t = Math.min((phoneRingTimer - shrinkStart) / shrinkDuration, 1);
+            const easeIn = t * t;
+            phoneX = centerX + (cornerX - centerX) * easeIn;
+            phoneY = centerY + (cornerY - centerY) * easeIn;
+            scale = 2.5 - 1.5 * easeIn;
+            // Gentle shake
+            const shakeIntensity = Math.sin(phoneRingTimer * 0.5) * 2 * (1 - t);
+            phoneX += shakeIntensity;
+        }
+
+        // Glowing ring indicator (larger when phone is bigger)
         const glowPulse = (Math.sin(phoneRingTimer * 0.2) + 1) / 2;
-        ctx.fillStyle = `rgba(255, 200, 100, ${glowPulse * 0.4})`;
+        ctx.fillStyle = `rgba(255, 200, 100, ${glowPulse * 0.5})`;
         ctx.beginPath();
-        ctx.arc(phoneX + baseW / 2, phoneY + 25, 40, 0, Math.PI * 2);
+        ctx.arc(phoneX + (baseW * scale) / 2, phoneY + 25 * scale, 40 * scale, 0, Math.PI * 2);
         ctx.fill();
+
+        // Dark overlay behind phone when in center
+        if (phoneRingTimer >= popUpDuration && phoneRingTimer < shrinkStart) {
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+        }
     }
+
+    // Apply scale transformation
+    ctx.save();
+    ctx.translate(phoneX, phoneY);
+    ctx.scale(scale, scale);
+    ctx.translate(-phoneX, -phoneY);
 
     // Phone base (yellowish-cream vintage color)
     const baseGradient = ctx.createLinearGradient(phoneX, phoneY, phoneX, phoneY + baseH);
@@ -1589,26 +1666,43 @@ function drawMiniPhone() {
         );
     }
     ctx.stroke();
+
+    // Restore canvas state after scale transformation
+    ctx.restore();
 }
 
 function drawPhoneInteraction() {
     // Show "Press E to interact" prompt when phone is ringing
     if (phoneRinging && !phoneAnswered) {
-        const promptX = canvas.width - 95;
-        const promptY = canvas.height - 100;
+        // Position prompt based on phone animation phase
+        const popUpDuration = 30;
+        const stayDuration = 150;
+        const shrinkStart = popUpDuration + stayDuration;
+
+        let promptX, promptY;
+        if (phoneRingTimer >= popUpDuration && phoneRingTimer < shrinkStart) {
+            // Phone is in center - show prompt below it
+            promptX = canvas.width / 2;
+            promptY = canvas.height / 2 + 80;
+        } else {
+            // Phone is in corner or transitioning
+            promptX = canvas.width - 48;
+            promptY = canvas.height - 100;
+        }
 
         // Background box for prompt
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+        const boxWidth = 130;
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
         ctx.beginPath();
-        ctx.roundRect(promptX - 5, promptY - 15, 105, 25, 4);
+        ctx.roundRect(promptX - boxWidth/2, promptY - 15, boxWidth, 28, 4);
         ctx.fill();
 
         // Pulsing text effect
         const pulse = (Math.sin(phoneRingTimer * 0.1) + 1) / 2;
         ctx.fillStyle = `rgba(255, 255, 255, ${0.7 + pulse * 0.3})`;
-        ctx.font = '12px "Segoe UI", sans-serif';
+        ctx.font = 'bold 14px "Segoe UI", sans-serif';
         ctx.textAlign = 'center';
-        ctx.fillText("Press 'E' to answer", promptX + 47, promptY);
+        ctx.fillText("Press 'E' to answer", promptX, promptY);
         ctx.textAlign = 'left';
     }
 
@@ -1721,6 +1815,23 @@ function drawPhoneInteraction() {
             } else {
                 drawDialogueBox(response.speaker, response.text, choiceMessageTimer);
             }
+        }
+    }
+
+    // Draw Level 8 narrator messages
+    if (level8NarratorActive && level8MessagePhase < level8NarratorMessages.length) {
+        const message = level8NarratorMessages[level8MessagePhase];
+        const messageDuration = 100 + message.text.length * 2;
+
+        // Check if we should move to next message
+        if (level8MessageTimer > messageDuration + 20) {
+            level8MessagePhase++;
+            level8MessageTimer = 0;
+            if (level8MessagePhase >= level8NarratorMessages.length) {
+                level8NarratorActive = false;
+            }
+        } else {
+            drawDialogueBox(message.speaker, message.text, level8MessageTimer);
         }
     }
 }
@@ -1853,9 +1964,17 @@ document.addEventListener('keydown', (e) => {
             if (phoneRinging && !phoneAnswered && gameState === 'playing') {
                 phoneAnswered = true;
                 phoneRinging = false;
-                narratorActive = true;
-                narratorTimer = 0;
-                narratorPhase = 0;
+
+                // Check if this is Level 8 phone call
+                if (currentLevel === 7 && level8PhoneTriggered) {
+                    level8NarratorActive = true;
+                    level8MessagePhase = 0;
+                    level8MessageTimer = 0;
+                } else {
+                    narratorActive = true;
+                    narratorTimer = 0;
+                    narratorPhase = 0;
+                }
             }
             break;
         case 'r':
