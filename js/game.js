@@ -977,8 +977,12 @@ function initMenuButtons() {
         new Button(canvas.width / 2 - 100, 300, 200, 60, 'PLAY', () => {
             gameState = 'playing';
             loadLevel(0);
-            // Start music when game starts
-            if (soundInitialized && !sound.muted) {
+            // Initialize sound if not already done, then start game music
+            if (!soundInitialized) {
+                sound.init();
+                soundInitialized = true;
+            }
+            if (!sound.muted) {
                 sound.startMusic();
             }
             // Trigger phone ringing on first game start
@@ -1176,12 +1180,15 @@ function gameLoop() {
             }
         }
     } else {
-        // Update and draw player
-        player.update(platforms);
+        // Update and draw player (freeze during narrator dialogue)
+        const isInDialogue = narratorActive || dialogueChoiceActive || choiceMessagePhase > 0;
+        if (!isInDialogue) {
+            player.update(platforms);
+        }
         player.draw();
 
-        // Check goal collision
-        if (goal && goal.checkCollision(player)) {
+        // Check goal collision (only if not in dialogue)
+        if (!isInDialogue && goal && goal.checkCollision(player)) {
             levelComplete = true;
             sound.playLevelComplete();
         }
