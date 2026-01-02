@@ -4,7 +4,7 @@
 
 // Build Info (for debugging - set DEBUG_MODE to false for release)
 const BUILD_VERSION = "0.1.0";
-const BUILD_NUMBER = 14;
+const BUILD_NUMBER = 15;
 const BUILD_DATE = "2026-01-02";
 const DEBUG_MODE = true;
 
@@ -662,13 +662,14 @@ class Key {
         this.ropeLength = ropeLength;
         this.collected = false;
         this.swingAngle = 0;
-        this.swingSpeed = 0.03;
+        this.swingSpeed = 0.001; // Much slower for smoother swing
+        this.swingPhase = Math.random() * Math.PI * 2; // Random start phase
     }
 
     update() {
         if (!this.collected) {
-            // Gentle swinging motion
-            this.swingAngle = Math.sin(Date.now() * this.swingSpeed) * 0.2;
+            // Smooth, gentle swinging motion using continuous time
+            this.swingAngle = Math.sin(Date.now() * this.swingSpeed + this.swingPhase) * 0.15;
         }
     }
 
@@ -754,8 +755,9 @@ class Door {
         this.y = y;
         this.width = 50;
         this.height = 80;
-        this.state = 'locked'; // 'locked', 'unlocked', 'open'
+        this.state = 'locked'; // 'locked', 'unlocked', 'open', 'entered'
         this.openProgress = 0; // 0 to 1 for opening animation
+        this.enterProgress = 0; // 0 to 1 for enter animation
     }
 
     update() {
@@ -763,6 +765,22 @@ class Door {
             this.openProgress += 0.05;
             if (this.openProgress > 1) this.openProgress = 1;
         }
+        if (this.state === 'entered' && this.enterProgress < 1) {
+            this.enterProgress += 0.03;
+            if (this.enterProgress > 1) this.enterProgress = 1;
+        }
+    }
+
+    isFullyOpen() {
+        return this.state === 'open' && this.openProgress >= 1;
+    }
+
+    enter() {
+        if (this.isFullyOpen()) {
+            this.state = 'entered';
+            return true;
+        }
+        return false;
     }
 
     draw() {
@@ -1001,28 +1019,54 @@ const levels = [
             { x: 650, y: 150, w: 150, h: 25 },
         ]
     },
-    // Level 9 - Key and Door
+    // Level 9 - Key and Door (two stages)
     {
         name: "Lock & Key",
         playerStart: { x: 50, y: 480 },
-        goal: { x: 720, y: 470 },
         hasKey: true,
         hasDoor: true,
         keyPosition: { x: 400, y: 150 },
-        doorPosition: { x: 550, y: 470 },
+        doorPosition: { x: 700, y: 470 },
+        hasStages: true,
+        // Stage 1 - get the key and unlock door
+        stage1: {
+            platforms: [
+                // Continuous ground
+                { x: 0, y: 550, w: 800, h: 50 },
+                // Climbing platforms to reach key
+                { x: 100, y: 470, w: 100, h: 25 },
+                { x: 250, y: 400, w: 100, h: 25 },
+                { x: 100, y: 330, w: 100, h: 25 },
+                { x: 280, y: 260, w: 120, h: 25 },
+                // Platform near key
+                { x: 380, y: 200, w: 80, h: 25 },
+                // Platform to jump back down
+                { x: 520, y: 300, w: 100, h: 25 },
+            ]
+        },
+        // Stage 2 - after entering door, reach the flag
+        stage2: {
+            playerStart: { x: 50, y: 480 },
+            goal: { x: 720, y: 470 },
+            platforms: [
+                // Ground
+                { x: 0, y: 550, w: 800, h: 50 },
+                // Some platforming
+                { x: 150, y: 470, w: 100, h: 25 },
+                { x: 320, y: 400, w: 100, h: 25 },
+                { x: 500, y: 340, w: 100, h: 25 },
+                { x: 650, y: 400, w: 100, h: 25 },
+            ]
+        },
+        // Legacy platforms for initial load (stage 1)
         platforms: [
-            // Ground level - split by door
-            { x: 0, y: 550, w: 550, h: 50 },
-            { x: 600, y: 550, w: 200, h: 50 },
-            // Climbing platforms to reach key
+            { x: 0, y: 550, w: 800, h: 50 },
             { x: 100, y: 470, w: 100, h: 25 },
             { x: 250, y: 400, w: 100, h: 25 },
             { x: 100, y: 330, w: 100, h: 25 },
             { x: 280, y: 260, w: 120, h: 25 },
-            // Platform near key
             { x: 380, y: 200, w: 80, h: 25 },
-            // Platform to jump back down
-            { x: 500, y: 300, w: 100, h: 25 },
+            { x: 520, y: 300, w: 100, h: 25 },
         ]
     }
 ];
@@ -1031,6 +1075,7 @@ const levels = [
 // Game State
 // ============================================
 let currentLevel = 0;
+let currentStage = 1; // For levels with multiple stages
 let platforms = [];
 let goal = null;
 let levelKey = null;
@@ -1129,13 +1174,23 @@ function loadLevel(levelIndex) {
 
     const level = levels[levelIndex];
 
+    // Reset stage counter for multi-stage levels
+    currentStage = 1;
+
     // Create platforms (with bloody flag support)
-    platforms = level.platforms.map(p =>
+    // For multi-stage levels, use stage1 platforms
+    const platformData = level.hasStages ? level.stage1.platforms : level.platforms;
+    platforms = platformData.map(p =>
         new Platform(p.x, p.y, p.w, p.h, '#3d5a80', p.bloody || false)
     );
 
     // Create goal with blood flag
-    goal = new Goal(level.goal.x, level.goal.y, level.hasBlood);
+    // For multi-stage levels, no goal in stage 1 (goal is in stage 2)
+    if (level.hasStages) {
+        goal = null;
+    } else {
+        goal = new Goal(level.goal.x, level.goal.y, level.hasBlood);
+    }
 
     // Create key if level has one
     if (level.hasKey && level.keyPosition) {
@@ -1182,6 +1237,33 @@ function loadLevel(levelIndex) {
 
     levelComplete = false;
     levelTransitionTimer = 0;
+}
+
+// Load stage 2 of a multi-stage level
+function loadStage2() {
+    const level = levels[currentLevel];
+
+    if (!level.hasStages || !level.stage2) return;
+
+    currentStage = 2;
+
+    // Load stage 2 platforms
+    platforms = level.stage2.platforms.map(p =>
+        new Platform(p.x, p.y, p.w, p.h, '#3d5a80', p.bloody || false)
+    );
+
+    // Create the goal in stage 2
+    goal = new Goal(level.stage2.goal.x, level.stage2.goal.y, level.hasBlood);
+
+    // Clear key and door (no longer needed)
+    levelKey = null;
+    levelDoor = null;
+
+    // Reset player position to stage 2 start
+    player.x = level.stage2.playerStart.x;
+    player.y = level.stage2.playerStart.y;
+    player.velX = 0;
+    player.velY = 0;
 }
 
 // Add level complete sound to SoundManager
@@ -1775,11 +1857,17 @@ function drawUI() {
                 ctx.fillText("Press 'E' to unlock", promptX, promptY);
             } else {
                 ctx.fillStyle = '#ff6666';
-                ctx.fillText('🔒 Locked - Need key', promptX, promptY);
+                ctx.fillText('Locked - Need key', promptX, promptY);
             }
         } else if (levelDoor.state === 'unlocked') {
             ctx.fillStyle = '#66ff66';
             ctx.fillText("Press 'E' to open", promptX, promptY);
+        } else if (levelDoor.isFullyOpen() && levelDoor.state !== 'entered') {
+            ctx.fillStyle = '#88ddff';
+            ctx.fillText("Press 'E' to enter", promptX, promptY);
+        } else if (levelDoor.state === 'entered') {
+            ctx.fillStyle = '#aaaaaa';
+            ctx.fillText("Entering...", promptX, promptY);
         }
         ctx.textAlign = 'left';
     }
@@ -2304,6 +2392,13 @@ document.addEventListener('keydown', (e) => {
                 } else if (levelDoor.state === 'unlocked') {
                     // Open the unlocked door
                     levelDoor.open();
+                } else if (levelDoor.isFullyOpen()) {
+                    // Enter through the open door - transition to stage 2
+                    levelDoor.enter();
+                    // Short delay then load stage 2
+                    setTimeout(() => {
+                        loadStage2();
+                    }, 500);
                 }
             }
             break;
