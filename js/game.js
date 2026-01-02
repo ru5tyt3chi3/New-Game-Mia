@@ -4,7 +4,7 @@
 
 // Build Info (for debugging - set DEBUG_MODE to false for release)
 const BUILD_VERSION = "0.1.0";
-const BUILD_NUMBER = 13;
+const BUILD_NUMBER = 14;
 const BUILD_DATE = "2026-01-02";
 const DEBUG_MODE = true;
 
@@ -651,6 +651,221 @@ class Goal {
 }
 
 // ============================================
+// Key Class (Collectible)
+// ============================================
+class Key {
+    constructor(x, y, ropeLength = 60) {
+        this.x = x;
+        this.y = y;
+        this.width = 20;
+        this.height = 30;
+        this.ropeLength = ropeLength;
+        this.collected = false;
+        this.swingAngle = 0;
+        this.swingSpeed = 0.03;
+    }
+
+    update() {
+        if (!this.collected) {
+            // Gentle swinging motion
+            this.swingAngle = Math.sin(Date.now() * this.swingSpeed) * 0.2;
+        }
+    }
+
+    draw() {
+        if (this.collected) return;
+
+        const swingOffsetX = Math.sin(this.swingAngle) * 10;
+
+        // Rope/string from ceiling
+        ctx.strokeStyle = '#8B4513';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(this.x + this.width / 2, this.y - this.ropeLength);
+        ctx.quadraticCurveTo(
+            this.x + this.width / 2 + swingOffsetX / 2,
+            this.y - this.ropeLength / 2,
+            this.x + this.width / 2 + swingOffsetX,
+            this.y
+        );
+        ctx.stroke();
+
+        // Key position with swing
+        const keyX = this.x + swingOffsetX;
+        const keyY = this.y;
+
+        // Key glow
+        const glow = (Math.sin(Date.now() * 0.005) + 1) / 2;
+        ctx.fillStyle = `rgba(255, 215, 0, ${glow * 0.3})`;
+        ctx.beginPath();
+        ctx.arc(keyX + this.width / 2, keyY + this.height / 2, 25, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Key head (circle)
+        ctx.fillStyle = '#ffd700';
+        ctx.strokeStyle = '#b8860b';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(keyX + this.width / 2, keyY + 8, 8, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+
+        // Key hole in head
+        ctx.fillStyle = '#1a1a2e';
+        ctx.beginPath();
+        ctx.arc(keyX + this.width / 2, keyY + 8, 3, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Key shaft
+        ctx.fillStyle = '#ffd700';
+        ctx.fillRect(keyX + this.width / 2 - 2, keyY + 12, 4, 15);
+
+        // Key teeth
+        ctx.fillRect(keyX + this.width / 2, keyY + 20, 6, 3);
+        ctx.fillRect(keyX + this.width / 2, keyY + 24, 4, 3);
+    }
+
+    checkCollision(player) {
+        if (this.collected) return false;
+
+        const swingOffsetX = Math.sin(this.swingAngle) * 10;
+        const keyX = this.x + swingOffsetX;
+
+        const collected = player.x < keyX + this.width &&
+                         player.x + player.width > keyX &&
+                         player.y < this.y + this.height &&
+                         player.y + player.height > this.y;
+
+        if (collected) {
+            this.collected = true;
+            sound.playLevelComplete(); // Use level complete sound for now
+        }
+
+        return collected;
+    }
+}
+
+// ============================================
+// Door Class (Locked/Unlocked/Open)
+// ============================================
+class Door {
+    constructor(x, y) {
+        this.x = x;
+        this.y = y;
+        this.width = 50;
+        this.height = 80;
+        this.state = 'locked'; // 'locked', 'unlocked', 'open'
+        this.openProgress = 0; // 0 to 1 for opening animation
+    }
+
+    update() {
+        if (this.state === 'open' && this.openProgress < 1) {
+            this.openProgress += 0.05;
+            if (this.openProgress > 1) this.openProgress = 1;
+        }
+    }
+
+    draw() {
+        // Door frame
+        ctx.fillStyle = '#4a3728';
+        ctx.fillRect(this.x - 5, this.y - 5, this.width + 10, this.height + 5);
+
+        // Door (slides or swings based on open progress)
+        if (this.state === 'open') {
+            // Door opening animation - slides to the side
+            const slideOffset = this.openProgress * (this.width - 5);
+            ctx.fillStyle = '#6b4423';
+            ctx.fillRect(this.x + slideOffset, this.y, this.width - slideOffset, this.height);
+
+            // Open doorway (dark inside)
+            ctx.fillStyle = '#0a0a15';
+            ctx.fillRect(this.x, this.y, slideOffset, this.height);
+        } else {
+            // Closed door
+            ctx.fillStyle = this.state === 'locked' ? '#5a3d2b' : '#6b4423';
+            ctx.fillRect(this.x, this.y, this.width, this.height);
+
+            // Door panels
+            ctx.strokeStyle = '#3d2817';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(this.x + 5, this.y + 5, this.width - 10, 30);
+            ctx.strokeRect(this.x + 5, this.y + 40, this.width - 10, 35);
+
+            // Lock/handle
+            if (this.state === 'locked') {
+                // Locked - show padlock
+                ctx.fillStyle = '#888';
+                ctx.fillRect(this.x + this.width - 18, this.y + 38, 12, 14);
+                ctx.beginPath();
+                ctx.arc(this.x + this.width - 12, this.y + 38, 6, Math.PI, 0);
+                ctx.strokeStyle = '#888';
+                ctx.lineWidth = 3;
+                ctx.stroke();
+
+                // Keyhole
+                ctx.fillStyle = '#1a1a2e';
+                ctx.beginPath();
+                ctx.arc(this.x + this.width - 12, this.y + 43, 2, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillRect(this.x + this.width - 13, this.y + 43, 2, 4);
+
+                // "Locked" indicator glow
+                ctx.fillStyle = 'rgba(255, 0, 0, 0.3)';
+                ctx.beginPath();
+                ctx.arc(this.x + this.width - 12, this.y + 45, 15, 0, Math.PI * 2);
+                ctx.fill();
+            } else {
+                // Unlocked - show handle
+                ctx.fillStyle = '#b8860b';
+                ctx.beginPath();
+                ctx.arc(this.x + this.width - 12, this.y + 45, 5, 0, Math.PI * 2);
+                ctx.fill();
+
+                // "Ready to open" indicator glow
+                ctx.fillStyle = 'rgba(0, 255, 0, 0.3)';
+                ctx.beginPath();
+                ctx.arc(this.x + this.width - 12, this.y + 45, 15, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+    }
+
+    isPlayerNear(player) {
+        const interactionRange = 20;
+        return player.x < this.x + this.width + interactionRange &&
+               player.x + player.width > this.x - interactionRange &&
+               player.y < this.y + this.height &&
+               player.y + player.height > this.y;
+    }
+
+    blocksPlayer(player) {
+        // Only block if door is not fully open
+        if (this.state === 'open' && this.openProgress >= 1) return false;
+
+        return player.x + player.width > this.x &&
+               player.x < this.x + this.width &&
+               player.y + player.height > this.y &&
+               player.y < this.y + this.height;
+    }
+
+    unlock() {
+        if (this.state === 'locked') {
+            this.state = 'unlocked';
+            return true;
+        }
+        return false;
+    }
+
+    open() {
+        if (this.state === 'unlocked') {
+            this.state = 'open';
+            return true;
+        }
+        return false;
+    }
+}
+
+// ============================================
 // Level Definitions
 // ============================================
 const levels = [
@@ -785,6 +1000,30 @@ const levels = [
             { x: 500, y: 210, w: 120, h: 25 },
             { x: 650, y: 150, w: 150, h: 25 },
         ]
+    },
+    // Level 9 - Key and Door
+    {
+        name: "Lock & Key",
+        playerStart: { x: 50, y: 480 },
+        goal: { x: 720, y: 470 },
+        hasKey: true,
+        hasDoor: true,
+        keyPosition: { x: 400, y: 150 },
+        doorPosition: { x: 550, y: 470 },
+        platforms: [
+            // Ground level - split by door
+            { x: 0, y: 550, w: 550, h: 50 },
+            { x: 600, y: 550, w: 200, h: 50 },
+            // Climbing platforms to reach key
+            { x: 100, y: 470, w: 100, h: 25 },
+            { x: 250, y: 400, w: 100, h: 25 },
+            { x: 100, y: 330, w: 100, h: 25 },
+            { x: 280, y: 260, w: 120, h: 25 },
+            // Platform near key
+            { x: 380, y: 200, w: 80, h: 25 },
+            // Platform to jump back down
+            { x: 500, y: 300, w: 100, h: 25 },
+        ]
     }
 ];
 
@@ -794,6 +1033,8 @@ const levels = [
 let currentLevel = 0;
 let platforms = [];
 let goal = null;
+let levelKey = null;
+let levelDoor = null;
 const player = new Player(100, 300);
 let levelComplete = false;
 let levelTransitionTimer = 0;
@@ -895,6 +1136,20 @@ function loadLevel(levelIndex) {
 
     // Create goal with blood flag
     goal = new Goal(level.goal.x, level.goal.y, level.hasBlood);
+
+    // Create key if level has one
+    if (level.hasKey && level.keyPosition) {
+        levelKey = new Key(level.keyPosition.x, level.keyPosition.y);
+    } else {
+        levelKey = null;
+    }
+
+    // Create door if level has one
+    if (level.hasDoor && level.doorPosition) {
+        levelDoor = new Door(level.doorPosition.x, level.doorPosition.y);
+    } else {
+        levelDoor = null;
+    }
 
     // Reset player position
     player.x = level.playerStart.x;
@@ -1206,6 +1461,18 @@ function gameLoop() {
         goal.draw();
     }
 
+    // Update and draw key
+    if (levelKey) {
+        levelKey.update();
+        levelKey.draw();
+    }
+
+    // Update and draw door
+    if (levelDoor) {
+        levelDoor.update();
+        levelDoor.draw();
+    }
+
     // Handle level complete state
     if (levelComplete) {
         levelTransitionTimer++;
@@ -1230,11 +1497,28 @@ function gameLoop() {
         const isInDialogue = narratorActive || dialogueChoiceActive || choiceMessagePhase > 0 || level8NarratorActive;
         if (!isInDialogue) {
             player.update(platforms);
+
+            // Check door collision (block player if door not open)
+            if (levelDoor && levelDoor.blocksPlayer(player)) {
+                // Push player back
+                if (player.x + player.width / 2 < levelDoor.x + levelDoor.width / 2) {
+                    player.x = levelDoor.x - player.width;
+                } else {
+                    player.x = levelDoor.x + levelDoor.width;
+                }
+                player.velX = 0;
+            }
         }
         player.draw();
 
-        // Check goal collision (only if not in dialogue)
-        if (!isInDialogue && goal && goal.checkCollision(player)) {
+        // Check key collision
+        if (levelKey && !levelKey.collected) {
+            levelKey.checkCollision(player);
+        }
+
+        // Check goal collision (only if not in dialogue and door is open or no door)
+        const canReachGoal = !levelDoor || (levelDoor.state === 'open' && levelDoor.openProgress >= 1);
+        if (!isInDialogue && goal && canReachGoal && goal.checkCollision(player)) {
             levelComplete = true;
             sound.playLevelComplete();
         }
@@ -1464,6 +1748,41 @@ function drawUI() {
     // Level progress
     ctx.fillStyle = '#a0a0a0';
     ctx.fillText(`${currentLevel + 1}/${levels.length}`, canvas.width - 100, 45);
+
+    // Key indicator (if level has key)
+    if (levelKey) {
+        ctx.font = '14px "Segoe UI", sans-serif';
+        if (levelKey.collected) {
+            ctx.fillStyle = '#ffd700';
+            ctx.fillText('🔑 Key collected!', 10, 70);
+        } else {
+            ctx.fillStyle = '#888888';
+            ctx.fillText('🔑 Find the key', 10, 70);
+        }
+    }
+
+    // Door interaction prompt
+    if (levelDoor && levelDoor.isPlayerNear(player)) {
+        const promptX = levelDoor.x + levelDoor.width / 2;
+        const promptY = levelDoor.y - 20;
+
+        ctx.textAlign = 'center';
+        ctx.font = 'bold 14px "Segoe UI", sans-serif';
+
+        if (levelDoor.state === 'locked') {
+            if (levelKey && levelKey.collected) {
+                ctx.fillStyle = '#ffd700';
+                ctx.fillText("Press 'E' to unlock", promptX, promptY);
+            } else {
+                ctx.fillStyle = '#ff6666';
+                ctx.fillText('🔒 Locked - Need key', promptX, promptY);
+            }
+        } else if (levelDoor.state === 'unlocked') {
+            ctx.fillStyle = '#66ff66';
+            ctx.fillText("Press 'E' to open", promptX, promptY);
+        }
+        ctx.textAlign = 'left';
+    }
 
     // Mini phone in bottom right corner
     drawMiniPhone();
@@ -1974,6 +2293,17 @@ document.addEventListener('keydown', (e) => {
                     narratorActive = true;
                     narratorTimer = 0;
                     narratorPhase = 0;
+                }
+            }
+            // Interact with door
+            else if (levelDoor && levelDoor.isPlayerNear(player) && gameState === 'playing') {
+                if (levelDoor.state === 'locked' && levelKey && levelKey.collected) {
+                    // Unlock the door with the key
+                    levelDoor.unlock();
+                    sound.playLevelComplete(); // Play a sound
+                } else if (levelDoor.state === 'unlocked') {
+                    // Open the unlocked door
+                    levelDoor.open();
                 }
             }
             break;
