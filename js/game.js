@@ -824,12 +824,40 @@ let narratorTimer = 0;
 let narratorPhase = 0;
 let phoneRingTimer = 0;
 let firstGameStart = true; // Track if this is the first time playing
+let dialogueChoiceActive = false;
+let selectedChoice = 0; // 0 = first option, 1 = second option
+let choiceMessagePhase = 0;
+let choiceMessageTimer = 0;
+
 const narratorMessages = [
     { text: "Ahem...", duration: 90 },
     { text: "Hello?", duration: 80 },
     { text: "Is it working?", duration: 100 },
     { text: "Ah yes. It's you!", duration: 110 },
     { text: "Lets see... player... 34899277?", duration: 150 }
+];
+
+const dialogueChoices = [
+    { text: "...", key: "1" },
+    { text: "Who are you?", key: "2" }
+];
+
+// Response messages for choice 1: "..."
+const choice1Responses = [
+    { text: "Okaaaayyyyyyy...", speaker: "???" },
+    { text: "Not much of a talker!", speaker: "???" },
+    { text: "That's fine...", speaker: "???" },
+    { text: "I'm the Narrator!", speaker: "Narrator" },
+    { text: "I'll be here whenever you need a chat!", speaker: "Narrator" }
+];
+
+// Response messages for choice 2: "Who are you?"
+const choice2Responses = [
+    { text: "Me?", speaker: "???" },
+    { text: "Well I'm the Narrator!", speaker: "Narrator" },
+    { text: "I'm here for a chat if you're stuck or anything!", speaker: "Narrator" },
+    { text: "Not that you'll need help...", speaker: "Narrator" },
+    { text: "You seem capable enough!", speaker: "Narrator" }
 ];
 
 function loadLevel(levelIndex) {
@@ -1107,6 +1135,11 @@ function gameLoop() {
     // Handle narrator dialogue
     if (narratorActive) {
         narratorTimer++;
+    }
+
+    // Handle choice response dialogue
+    if (choiceMessagePhase > 0) {
+        choiceMessageTimer++;
     }
 
     // Clear and draw background
@@ -1573,53 +1606,137 @@ function drawPhoneInteraction() {
                 narratorPhase++;
                 if (narratorPhase >= narratorMessages.length) {
                     narratorActive = false;
+                    // Show dialogue choices after initial messages
+                    dialogueChoiceActive = true;
                 }
             } else if (timeInMessage > 0 && timeInMessage <= currentMessage.duration) {
-                // Draw dialogue box at bottom of screen
-                const boxWidth = 500;
-                const boxHeight = 80;
-                const boxX = (canvas.width - boxWidth) / 2;
-                const boxY = canvas.height - boxHeight - 20;
-
-                // Semi-transparent background
-                ctx.fillStyle = 'rgba(20, 20, 40, 0.9)';
-                ctx.beginPath();
-                ctx.roundRect(boxX, boxY, boxWidth, boxHeight, 8);
-                ctx.fill();
-
-                // Border
-                ctx.strokeStyle = '#e94560';
-                ctx.lineWidth = 2;
-                ctx.beginPath();
-                ctx.roundRect(boxX, boxY, boxWidth, boxHeight, 8);
-                ctx.stroke();
-
-                // "Narrator" label
-                ctx.fillStyle = '#e94560';
-                ctx.font = 'bold 14px "Segoe UI", sans-serif';
-                ctx.fillText('???', boxX + 20, boxY + 25);
-
-                // Typewriter effect for the message
-                const charsToShow = Math.floor(timeInMessage / 3); // Show one char every 3 frames
-                const displayText = currentMessage.text.substring(0, charsToShow);
-
-                // Play sound for each new character
-                if (charsToShow > 0 && charsToShow <= currentMessage.text.length && timeInMessage % 3 === 1) {
-                    sound.playNarratorVoice();
-                }
-
-                ctx.fillStyle = '#ffffff';
-                ctx.font = '20px "Segoe UI", sans-serif';
-                ctx.fillText(displayText, boxX + 20, boxY + 55);
-
-                // Blinking cursor
-                if (charsToShow < currentMessage.text.length && Math.floor(narratorTimer / 15) % 2 === 0) {
-                    const textWidth = ctx.measureText(displayText).width;
-                    ctx.fillStyle = '#ffffff';
-                    ctx.fillRect(boxX + 22 + textWidth, boxY + 40, 2, 20);
-                }
+                drawDialogueBox('???', currentMessage.text, timeInMessage);
             }
         }
+    }
+
+    // Draw dialogue choices
+    if (dialogueChoiceActive && choiceMessagePhase === 0) {
+        const boxWidth = 500;
+        const boxHeight = 120;
+        const boxX = (canvas.width - boxWidth) / 2;
+        const boxY = canvas.height - boxHeight - 20;
+
+        // Semi-transparent background
+        ctx.fillStyle = 'rgba(20, 20, 40, 0.9)';
+        ctx.beginPath();
+        ctx.roundRect(boxX, boxY, boxWidth, boxHeight, 8);
+        ctx.fill();
+
+        // Border
+        ctx.strokeStyle = '#e94560';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.roundRect(boxX, boxY, boxWidth, boxHeight, 8);
+        ctx.stroke();
+
+        // "Choose your response" label
+        ctx.fillStyle = '#a0a0a0';
+        ctx.font = '14px "Segoe UI", sans-serif';
+        ctx.fillText('Choose your response:', boxX + 20, boxY + 25);
+
+        // Draw choice options
+        for (let i = 0; i < dialogueChoices.length; i++) {
+            const choiceY = boxY + 50 + i * 30;
+            const isHovered = selectedChoice === i;
+
+            // Choice background
+            if (isHovered) {
+                ctx.fillStyle = 'rgba(233, 69, 96, 0.3)';
+                ctx.beginPath();
+                ctx.roundRect(boxX + 15, choiceY - 18, boxWidth - 30, 28, 4);
+                ctx.fill();
+            }
+
+            // Key indicator
+            ctx.fillStyle = '#e94560';
+            ctx.font = 'bold 16px "Segoe UI", sans-serif';
+            ctx.fillText(`[${dialogueChoices[i].key}]`, boxX + 25, choiceY);
+
+            // Choice text
+            ctx.fillStyle = isHovered ? '#ffffff' : '#cccccc';
+            ctx.font = '18px "Segoe UI", sans-serif';
+            ctx.fillText(dialogueChoices[i].text, boxX + 70, choiceY);
+        }
+
+        // Hint text
+        ctx.fillStyle = '#666666';
+        ctx.font = '12px "Segoe UI", sans-serif';
+        ctx.fillText('Press 1 or 2 to choose, or use ↑↓ and Enter', boxX + 20, boxY + boxHeight - 10);
+    }
+
+    // Draw choice response messages
+    if (choiceMessagePhase > 0) {
+        const responses = selectedChoice === 0 ? choice1Responses : choice2Responses;
+        const responseIndex = choiceMessagePhase - 1;
+
+        if (responseIndex < responses.length) {
+            const response = responses[responseIndex];
+            const messageDuration = 100 + response.text.length * 2;
+
+            // Check if we should move to next message
+            if (choiceMessageTimer > messageDuration + 20) {
+                choiceMessagePhase++;
+                choiceMessageTimer = 0;
+                if (choiceMessagePhase > responses.length) {
+                    // All responses done
+                    choiceMessagePhase = 0;
+                    dialogueChoiceActive = false;
+                }
+            } else {
+                drawDialogueBox(response.speaker, response.text, choiceMessageTimer);
+            }
+        }
+    }
+}
+
+function drawDialogueBox(speaker, text, timeInMessage) {
+    const boxWidth = 500;
+    const boxHeight = 80;
+    const boxX = (canvas.width - boxWidth) / 2;
+    const boxY = canvas.height - boxHeight - 20;
+
+    // Semi-transparent background
+    ctx.fillStyle = 'rgba(20, 20, 40, 0.9)';
+    ctx.beginPath();
+    ctx.roundRect(boxX, boxY, boxWidth, boxHeight, 8);
+    ctx.fill();
+
+    // Border
+    ctx.strokeStyle = '#e94560';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.roundRect(boxX, boxY, boxWidth, boxHeight, 8);
+    ctx.stroke();
+
+    // Speaker label
+    ctx.fillStyle = speaker === 'Narrator' ? '#4a90d9' : '#e94560';
+    ctx.font = 'bold 14px "Segoe UI", sans-serif';
+    ctx.fillText(speaker, boxX + 20, boxY + 25);
+
+    // Typewriter effect for the message
+    const charsToShow = Math.floor(timeInMessage / 3);
+    const displayText = text.substring(0, charsToShow);
+
+    // Play sound for each new character
+    if (charsToShow > 0 && charsToShow <= text.length && timeInMessage % 3 === 1) {
+        sound.playNarratorVoice();
+    }
+
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '20px "Segoe UI", sans-serif';
+    ctx.fillText(displayText, boxX + 20, boxY + 55);
+
+    // Blinking cursor
+    if (charsToShow < text.length && Math.floor(timeInMessage / 15) % 2 === 0) {
+        const textWidth = ctx.measureText(displayText).width;
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(boxX + 22 + textWidth, boxY + 40, 2, 20);
     }
 }
 
@@ -1733,9 +1850,48 @@ document.addEventListener('keydown', (e) => {
                 levelComplete = false;
             }
             break;
-        // Debug: Number keys to jump to specific levels
+        // Arrow keys for dialogue choice selection
+        case 'arrowup':
+            if (dialogueChoiceActive && choiceMessagePhase === 0) {
+                selectedChoice = 0;
+                e.preventDefault();
+            }
+            break;
+        case 'arrowdown':
+            if (dialogueChoiceActive && choiceMessagePhase === 0) {
+                selectedChoice = 1;
+                e.preventDefault();
+            }
+            break;
+        case 'enter':
+            // Confirm dialogue choice
+            if (dialogueChoiceActive && choiceMessagePhase === 0) {
+                choiceMessagePhase = 1;
+                choiceMessageTimer = 0;
+                e.preventDefault();
+            }
+            break;
+        // Number keys - dialogue choices take priority, then level select
         case '1':
+            if (dialogueChoiceActive && choiceMessagePhase === 0) {
+                selectedChoice = 0;
+                choiceMessagePhase = 1;
+                choiceMessageTimer = 0;
+            } else if (gameState === 'playing' && !dialogueChoiceActive) {
+                currentLevel = 0;
+                loadLevel(currentLevel);
+            }
+            break;
         case '2':
+            if (dialogueChoiceActive && choiceMessagePhase === 0) {
+                selectedChoice = 1;
+                choiceMessagePhase = 1;
+                choiceMessageTimer = 0;
+            } else if (gameState === 'playing' && !dialogueChoiceActive) {
+                currentLevel = 1;
+                loadLevel(currentLevel);
+            }
+            break;
         case '3':
         case '4':
         case '5':
@@ -1743,10 +1899,12 @@ document.addEventListener('keydown', (e) => {
         case '7':
         case '8':
         case '9':
-            const levelNum = parseInt(e.key) - 1;
-            if (levelNum < levels.length) {
-                currentLevel = levelNum;
-                loadLevel(currentLevel);
+            if (gameState === 'playing' && !dialogueChoiceActive) {
+                const levelNum = parseInt(e.key) - 1;
+                if (levelNum < levels.length) {
+                    currentLevel = levelNum;
+                    loadLevel(currentLevel);
+                }
             }
             break;
     }
