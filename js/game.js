@@ -649,6 +649,12 @@ let levelComplete = false;
 let levelTransitionTimer = 0;
 let soundInitialized = false;
 
+// Menu state
+let gameState = 'menu'; // 'menu', 'settings', 'playing'
+let menuButtons = [];
+let settingsButtons = [];
+let hoveredButton = null;
+
 // Glitch effect state
 let glitchActive = false;
 let glitchTimer = 0;
@@ -732,8 +738,148 @@ SoundManager.prototype.playLevelComplete = function() {
     });
 };
 
-// Initialize first level
-loadLevel(0);
+// Don't load level immediately - start in menu state
+// loadLevel(0);
+
+// ============================================
+// Menu System
+// ============================================
+class Button {
+    constructor(x, y, width, height, text, action) {
+        this.x = x;
+        this.y = y;
+        this.width = width;
+        this.height = height;
+        this.text = text;
+        this.action = action;
+        this.hovered = false;
+    }
+
+    draw() {
+        // Button background
+        if (this.hovered) {
+            ctx.fillStyle = '#e94560';
+        } else {
+            ctx.fillStyle = '#3d5a80';
+        }
+        ctx.fillRect(this.x, this.y, this.width, this.height);
+
+        // Button border
+        ctx.strokeStyle = this.hovered ? '#ffffff' : '#e94560';
+        ctx.lineWidth = 3;
+        ctx.strokeRect(this.x, this.y, this.width, this.height);
+
+        // Button text
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 24px "Segoe UI", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(this.text, this.x + this.width / 2, this.y + this.height / 2 + 8);
+        ctx.textAlign = 'left';
+    }
+
+    isInside(mx, my) {
+        return mx >= this.x && mx <= this.x + this.width &&
+               my >= this.y && my <= this.y + this.height;
+    }
+}
+
+// Initialize menu buttons
+function initMenuButtons() {
+    menuButtons = [
+        new Button(canvas.width / 2 - 100, 300, 200, 60, 'PLAY', () => {
+            gameState = 'playing';
+            loadLevel(0);
+            // Start music when game starts
+            if (soundInitialized && !sound.muted) {
+                sound.startMusic();
+            }
+        }),
+        new Button(canvas.width / 2 - 100, 380, 200, 60, 'SETTINGS', () => {
+            gameState = 'settings';
+        })
+    ];
+
+    settingsButtons = [
+        new Button(canvas.width / 2 - 100, 250, 200, 60, sound.muted ? 'SOUND: OFF' : 'SOUND: ON', function() {
+            sound.toggleMute();
+            this.text = sound.muted ? 'SOUND: OFF' : 'SOUND: ON';
+        }),
+        new Button(canvas.width / 2 - 100, 330, 200, 60, 'CONTROLS', () => {
+            // Just show controls info - no action needed
+        }),
+        new Button(canvas.width / 2 - 100, 480, 200, 60, 'BACK', () => {
+            gameState = 'menu';
+        })
+    ];
+}
+
+function drawMainMenu() {
+    // Background
+    drawBackground();
+
+    // Title
+    ctx.fillStyle = '#e94560';
+    ctx.font = 'bold 56px "Segoe UI", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText("Mia's Adventure", canvas.width / 2, 150);
+
+    // Subtitle
+    ctx.fillStyle = '#a0a0a0';
+    ctx.font = '20px "Segoe UI", sans-serif';
+    ctx.fillText('A Platformer Game', canvas.width / 2, 190);
+
+    // Draw Mia character as decoration
+    ctx.fillStyle = '#e94560';
+    ctx.fillRect(canvas.width / 2 - 25, 220, 50, 70);
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.arc(canvas.width / 2 + 10, 240, 8, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#1a1a2e';
+    ctx.beginPath();
+    ctx.arc(canvas.width / 2 + 12, 240, 4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#1a1a2e';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(canvas.width / 2, 260, 10, 0.1 * Math.PI, 0.9 * Math.PI);
+    ctx.stroke();
+
+    // Draw buttons
+    for (const button of menuButtons) {
+        button.draw();
+    }
+
+    ctx.textAlign = 'left';
+}
+
+function drawSettingsMenu() {
+    // Background
+    drawBackground();
+
+    // Title
+    ctx.fillStyle = '#e94560';
+    ctx.font = 'bold 48px "Segoe UI", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('Settings', canvas.width / 2, 120);
+
+    // Draw buttons
+    for (const button of settingsButtons) {
+        button.draw();
+    }
+
+    // Controls info
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '16px "Segoe UI", sans-serif';
+    ctx.fillText('Movement: A/D or Arrow Keys', canvas.width / 2, 410);
+    ctx.fillText('Jump: W, Up Arrow, or Space', canvas.width / 2, 435);
+    ctx.fillText('Restart Level: R | Mute: M', canvas.width / 2, 460);
+
+    ctx.textAlign = 'left';
+}
+
+// Initialize buttons
+initMenuButtons();
 
 // ============================================
 // Background Drawing
@@ -762,6 +908,19 @@ function drawBackground() {
 // Game Loop
 // ============================================
 function gameLoop() {
+    // Handle menu states
+    if (gameState === 'menu') {
+        drawMainMenu();
+        requestAnimationFrame(gameLoop);
+        return;
+    }
+
+    if (gameState === 'settings') {
+        drawSettingsMenu();
+        requestAnimationFrame(gameLoop);
+        return;
+    }
+
     // Handle cutscene
     if (cutsceneActive) {
         drawCutscene();
@@ -1041,10 +1200,53 @@ function drawUI() {
 function initSoundOnInteraction() {
     if (!soundInitialized) {
         sound.init();
-        sound.startMusic();
+        // Don't start music if in menu
+        if (gameState === 'playing') {
+            sound.startMusic();
+        }
         soundInitialized = true;
     }
 }
+
+// Mouse event handling for menus
+canvas.addEventListener('mousemove', (e) => {
+    const rect = canvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+
+    // Update button hover states
+    const buttons = gameState === 'menu' ? menuButtons :
+                    gameState === 'settings' ? settingsButtons : [];
+
+    let anyHovered = false;
+    for (const button of buttons) {
+        button.hovered = button.isInside(mx, my);
+        if (button.hovered) anyHovered = true;
+    }
+
+    // Change cursor style
+    canvas.style.cursor = anyHovered ? 'pointer' : 'default';
+});
+
+canvas.addEventListener('click', (e) => {
+    const rect = canvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+
+    // Initialize sound on click
+    initSoundOnInteraction();
+
+    // Check button clicks
+    const buttons = gameState === 'menu' ? menuButtons :
+                    gameState === 'settings' ? settingsButtons : [];
+
+    for (const button of buttons) {
+        if (button.isInside(mx, my)) {
+            button.action();
+            break;
+        }
+    }
+});
 
 document.addEventListener('keydown', (e) => {
     initSoundOnInteraction();
@@ -1069,7 +1271,21 @@ document.addEventListener('keydown', (e) => {
             break;
         case 'r':
             // Restart current level
-            loadLevel(currentLevel);
+            if (gameState === 'playing') {
+                loadLevel(currentLevel);
+            }
+            break;
+        case 'escape':
+            // Return to menu or go back
+            if (gameState === 'settings') {
+                gameState = 'menu';
+            } else if (gameState === 'playing') {
+                gameState = 'menu';
+                sound.stopMusic();
+                // Reset game state
+                cutsceneActive = false;
+                levelComplete = false;
+            }
             break;
         // Debug: Number keys to jump to specific levels
         case '1':
