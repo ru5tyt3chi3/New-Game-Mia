@@ -1293,69 +1293,93 @@ function drawMiniPhone() {
     const phoneY = canvas.height - 95;
     const phoneW = 40;
     const phoneH = 75;
-    const cornerRadius = 6;
+    const cornerRadius = 4;
 
-    // Phone body (dark gray with rounded corners)
-    ctx.fillStyle = '#2a2a2a';
+    // Old phone body (yellowish-white cream color)
+    const bodyGradient = ctx.createLinearGradient(phoneX, phoneY, phoneX + phoneW, phoneY + phoneH);
+    bodyGradient.addColorStop(0, '#f5f0dc'); // Cream white
+    bodyGradient.addColorStop(0.5, '#e8e0c8'); // Slightly darker
+    bodyGradient.addColorStop(1, '#d9d0b8'); // Aged yellow-white
+    ctx.fillStyle = bodyGradient;
     ctx.beginPath();
     ctx.roundRect(phoneX, phoneY, phoneW, phoneH, cornerRadius);
     ctx.fill();
 
-    // Phone border/frame
-    ctx.strokeStyle = '#444444';
+    // Phone border (darker aged edge)
+    ctx.strokeStyle = '#b8a880';
     ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.roundRect(phoneX, phoneY, phoneW, phoneH, cornerRadius);
     ctx.stroke();
 
-    // Screen area
-    ctx.fillStyle = '#1a1a3e';
-    ctx.fillRect(phoneX + 4, phoneY + 10, phoneW - 8, phoneH - 22);
+    // Small green LCD screen (old Nokia style)
+    ctx.fillStyle = '#8bac0f'; // Classic LCD green
+    ctx.fillRect(phoneX + 5, phoneY + 8, phoneW - 10, 20);
 
-    // Screen glow effect
-    const screenGlow = ctx.createLinearGradient(phoneX + 4, phoneY + 10, phoneX + 4, phoneY + phoneH - 12);
-    screenGlow.addColorStop(0, 'rgba(100, 150, 255, 0.15)');
-    screenGlow.addColorStop(1, 'rgba(50, 100, 200, 0.05)');
-    ctx.fillStyle = screenGlow;
-    ctx.fillRect(phoneX + 4, phoneY + 10, phoneW - 8, phoneH - 22);
+    // Screen border
+    ctx.strokeStyle = '#5a5a4a';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(phoneX + 5, phoneY + 8, phoneW - 10, 20);
 
-    // Speaker at top
-    ctx.fillStyle = '#1a1a1a';
-    ctx.fillRect(phoneX + 14, phoneY + 4, 12, 2);
-
-    // Home button at bottom
-    ctx.fillStyle = '#1a1a1a';
-    ctx.beginPath();
-    ctx.arc(phoneX + phoneW / 2, phoneY + phoneH - 6, 4, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Simple content on screen - time display
-    ctx.fillStyle = '#ffffff';
-    ctx.font = '8px "Segoe UI", sans-serif';
+    // Screen content - simple time on LCD
+    ctx.fillStyle = '#306230'; // Dark LCD green for text
+    ctx.font = 'bold 9px monospace';
     ctx.textAlign = 'center';
     const now = new Date();
     const timeStr = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
-    ctx.fillText(timeStr, phoneX + phoneW / 2, phoneY + 25);
+    ctx.fillText(timeStr, phoneX + phoneW / 2, phoneY + 21);
 
-    // Battery icon
-    ctx.fillStyle = '#5cb85c';
-    ctx.fillRect(phoneX + phoneW - 12, phoneY + 14, 6, 3);
+    // Battery indicator on screen
+    ctx.fillStyle = '#306230';
+    ctx.fillRect(phoneX + 22, phoneY + 11, 6, 3);
+    ctx.fillRect(phoneX + 28, phoneY + 12, 1, 1);
 
-    // Signal bars
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(phoneX + 6, phoneY + 15, 2, 2);
-    ctx.fillRect(phoneX + 9, phoneY + 14, 2, 3);
-    ctx.fillRect(phoneX + 12, phoneY + 13, 2, 4);
+    // Speaker holes at top
+    ctx.fillStyle = '#4a4a3a';
+    for (let i = 0; i < 4; i++) {
+        ctx.beginPath();
+        ctx.arc(phoneX + 12 + i * 5, phoneY + 4, 1, 0, Math.PI * 2);
+        ctx.fill();
+    }
 
-    // App icons on screen
-    ctx.fillStyle = '#e94560';
-    ctx.fillRect(phoneX + 8, phoneY + 32, 8, 8);
-    ctx.fillStyle = '#5cb85c';
-    ctx.fillRect(phoneX + 20, phoneY + 32, 8, 8);
-    ctx.fillStyle = '#4a90a4';
-    ctx.fillRect(phoneX + 8, phoneY + 44, 8, 8);
-    ctx.fillStyle = '#ffd700';
-    ctx.fillRect(phoneX + 20, phoneY + 44, 8, 8);
+    // Number pad buttons (3x4 grid)
+    ctx.fillStyle = '#c8c0a8'; // Button color
+    const btnSize = 6;
+    const btnGap = 2;
+    const startX = phoneX + 7;
+    const startY = phoneY + 32;
+
+    for (let row = 0; row < 4; row++) {
+        for (let col = 0; col < 3; col++) {
+            const bx = startX + col * (btnSize + btnGap);
+            const by = startY + row * (btnSize + btnGap);
+
+            // Button base
+            ctx.fillStyle = '#d0c8b0';
+            ctx.fillRect(bx, by, btnSize, btnSize);
+
+            // Button highlight (3D effect)
+            ctx.fillStyle = '#e8e0c8';
+            ctx.fillRect(bx, by, btnSize, 1);
+            ctx.fillRect(bx, by, 1, btnSize);
+
+            // Button shadow
+            ctx.fillStyle = '#a8a090';
+            ctx.fillRect(bx + btnSize - 1, by, 1, btnSize);
+            ctx.fillRect(bx, by + btnSize - 1, btnSize, 1);
+        }
+    }
+
+    // Navigation button at bottom (oval)
+    ctx.fillStyle = '#b8b0a0';
+    ctx.beginPath();
+    ctx.ellipse(phoneX + phoneW / 2, phoneY + phoneH - 6, 8, 4, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#908878';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.ellipse(phoneX + phoneW / 2, phoneY + phoneH - 6, 8, 4, 0, 0, Math.PI * 2);
+    ctx.stroke();
 
     ctx.textAlign = 'left';
 }
