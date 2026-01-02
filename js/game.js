@@ -131,6 +131,92 @@ class SoundManager {
         scheduleLoop();
     }
 
+    startMenuMusic() {
+        if (!this.initialized) return;
+        this.stopMusic();
+
+        // Calm, pleasant menu melody
+        const melody = [
+            { note: 392.00, dur: 0.4 },  // G4
+            { note: 440.00, dur: 0.4 },  // A4
+            { note: 493.88, dur: 0.8 },  // B4
+            { note: 440.00, dur: 0.4 },  // A4
+            { note: 392.00, dur: 0.4 },  // G4
+            { note: 329.63, dur: 0.8 },  // E4
+            { note: 293.66, dur: 0.4 },  // D4
+            { note: 329.63, dur: 0.4 },  // E4
+            { note: 392.00, dur: 1.2 },  // G4
+        ];
+
+        const playMenuNote = (freq, startTime, duration) => {
+            const osc = this.audioContext.createOscillator();
+            const gain = this.audioContext.createGain();
+
+            osc.connect(gain);
+            gain.connect(this.musicGain);
+
+            osc.type = 'sine';
+            osc.frequency.value = freq;
+
+            // Soft attack and release
+            gain.gain.setValueAtTime(0, startTime);
+            gain.gain.linearRampToValueAtTime(0.12, startTime + 0.08);
+            gain.gain.setValueAtTime(0.12, startTime + duration - 0.1);
+            gain.gain.linearRampToValueAtTime(0, startTime + duration);
+
+            osc.start(startTime);
+            osc.stop(startTime + duration);
+
+            this.musicOscillators.push(osc);
+        };
+
+        // Add gentle pad underneath
+        const playPad = (freq, startTime, duration) => {
+            const osc = this.audioContext.createOscillator();
+            const gain = this.audioContext.createGain();
+
+            osc.connect(gain);
+            gain.connect(this.musicGain);
+
+            osc.type = 'triangle';
+            osc.frequency.value = freq / 2; // One octave lower
+
+            gain.gain.setValueAtTime(0, startTime);
+            gain.gain.linearRampToValueAtTime(0.05, startTime + 0.2);
+            gain.gain.setValueAtTime(0.05, startTime + duration - 0.3);
+            gain.gain.linearRampToValueAtTime(0, startTime + duration);
+
+            osc.start(startTime);
+            osc.stop(startTime + duration);
+
+            this.musicOscillators.push(osc);
+        };
+
+        let totalDuration = 0;
+        melody.forEach(n => totalDuration += n.dur);
+
+        const scheduleMenuLoop = () => {
+            if (this.muted) return;
+
+            const now = this.audioContext.currentTime;
+            let time = 0;
+
+            melody.forEach(({ note, dur }) => {
+                playMenuNote(note, now + time, dur * 0.9);
+                time += dur;
+            });
+
+            // Pad chord
+            playPad(261.63, now, totalDuration); // C
+            playPad(329.63, now, totalDuration); // E
+            playPad(392.00, now, totalDuration); // G
+
+            this.musicTimeout = setTimeout(scheduleMenuLoop, totalDuration * 1000);
+        };
+
+        scheduleMenuLoop();
+    }
+
     stopMusic() {
         if (this.musicTimeout) {
             clearTimeout(this.musicTimeout);
@@ -151,7 +237,12 @@ class SoundManager {
         } else {
             if (this.musicGain) this.musicGain.gain.value = 0.3;
             if (this.sfxGain) this.sfxGain.gain.value = 0.5;
-            this.startMusic();
+            // Play appropriate music based on game state
+            if (gameState === 'menu' || gameState === 'settings') {
+                this.startMenuMusic();
+            } else {
+                this.startMusic();
+            }
         }
         return this.muted;
     }
@@ -809,6 +900,7 @@ function initMenuButtons() {
         }),
         new Button(canvas.width / 2 - 100, 480, 200, 60, 'BACK', () => {
             gameState = 'menu';
+            // Menu music continues (already playing in settings)
         })
     ];
 }
@@ -1200,9 +1292,11 @@ function drawUI() {
 function initSoundOnInteraction() {
     if (!soundInitialized) {
         sound.init();
-        // Don't start music if in menu
+        // Play appropriate music based on game state
         if (gameState === 'playing') {
             sound.startMusic();
+        } else if (gameState === 'menu' || gameState === 'settings') {
+            sound.startMenuMusic();
         }
         soundInitialized = true;
     }
@@ -1282,6 +1376,10 @@ document.addEventListener('keydown', (e) => {
             } else if (gameState === 'playing') {
                 gameState = 'menu';
                 sound.stopMusic();
+                // Start menu music
+                if (soundInitialized && !sound.muted) {
+                    sound.startMenuMusic();
+                }
                 // Reset game state
                 cutsceneActive = false;
                 levelComplete = false;
