@@ -4,7 +4,7 @@
 
 // Build Info (for debugging - set DEBUG_MODE to false for release)
 const BUILD_VERSION = "0.1.0";
-const BUILD_NUMBER = 15;
+const BUILD_NUMBER = 16;
 const BUILD_DATE = "2026-01-02";
 const DEBUG_MODE = true;
 
@@ -1165,6 +1165,21 @@ let level8MessagePhase = 0;
 let level8MessageTimer = 0;
 let level8NarratorActive = false;
 
+// Level 9 intro dialogue (key and door tutorial)
+let level9IntroTriggered = false;
+const level9NarratorMessages = [
+    { text: "Okay.", speaker: "Narrator" },
+    { text: "So this level is a teensy bit harder.", speaker: "Narrator" },
+    { text: "All you have to do is grab the key, open the door, and touch the flag!", speaker: "Narrator" },
+    { text: "Easy as- oh...", speaker: "Narrator" },
+    { text: "Sorry... gotta take this call.", speaker: "Narrator" },
+    { text: "...", speaker: "Narrator" },
+    { text: "See ya' in a bit!", speaker: "Narrator" }
+];
+let level9MessagePhase = 0;
+let level9MessageTimer = 0;
+let level9NarratorActive = false;
+
 function loadLevel(levelIndex) {
     if (levelIndex >= levels.length) {
         // Game complete - restart from level 1
@@ -1233,6 +1248,14 @@ function loadLevel(levelIndex) {
         phoneRinging = true;
         phoneAnswered = false;
         phoneRingTimer = 0;
+    }
+
+    // Trigger Level 9 narrator intro (key and door tutorial)
+    if (levelIndex === 8 && !level9IntroTriggered) {
+        level9IntroTriggered = true;
+        level9NarratorActive = true;
+        level9MessagePhase = 0;
+        level9MessageTimer = 0;
     }
 
     levelComplete = false;
@@ -1529,6 +1552,11 @@ function gameLoop() {
         level8MessageTimer++;
     }
 
+    // Handle Level 9 narrator dialogue
+    if (level9NarratorActive) {
+        level9MessageTimer++;
+    }
+
     // Clear and draw background
     drawBackground();
 
@@ -1576,7 +1604,7 @@ function gameLoop() {
         }
     } else {
         // Update and draw player (freeze during narrator dialogue)
-        const isInDialogue = narratorActive || dialogueChoiceActive || choiceMessagePhase > 0 || level8NarratorActive;
+        const isInDialogue = narratorActive || dialogueChoiceActive || choiceMessagePhase > 0 || level8NarratorActive || level9NarratorActive;
         if (!isInDialogue) {
             player.update(platforms);
 
@@ -2239,6 +2267,23 @@ function drawPhoneInteraction() {
             }
         } else {
             drawDialogueBox(message.speaker, message.text, level8MessageTimer);
+        }
+    }
+
+    // Draw Level 9 narrator messages (key and door tutorial)
+    if (level9NarratorActive && level9MessagePhase < level9NarratorMessages.length) {
+        const message = level9NarratorMessages[level9MessagePhase];
+        const messageDuration = 100 + message.text.length * 2;
+
+        // Check if we should move to next message
+        if (level9MessageTimer > messageDuration + 20) {
+            level9MessagePhase++;
+            level9MessageTimer = 0;
+            if (level9MessagePhase >= level9NarratorMessages.length) {
+                level9NarratorActive = false;
+            }
+        } else {
+            drawDialogueBox(message.speaker, message.text, level9MessageTimer);
         }
     }
 }
