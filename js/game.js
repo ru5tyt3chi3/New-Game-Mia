@@ -2,6 +2,12 @@
 // Mia's Adventure - Platform Game Foundation
 // ============================================
 
+// Build Info (for debugging - set DEBUG_MODE to false for release)
+const BUILD_VERSION = "0.1.0";
+const BUILD_NUMBER = 12;
+const BUILD_DATE = "2026-01-02";
+const DEBUG_MODE = true;
+
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 
@@ -1083,6 +1089,17 @@ initMenuButtons();
 // ============================================
 // Background Drawing
 // ============================================
+function drawBuildInfo() {
+    if (!DEBUG_MODE) return;
+
+    ctx.save();
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+    ctx.font = '10px monospace';
+    ctx.textAlign = 'left';
+    ctx.fillText(`v${BUILD_VERSION} build ${BUILD_NUMBER} (${BUILD_DATE})`, 10, canvas.height - 10);
+    ctx.restore();
+}
+
 function drawBackground() {
     // Sky gradient
     const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
@@ -1110,12 +1127,14 @@ function gameLoop() {
     // Handle menu states
     if (gameState === 'menu') {
         drawMainMenu();
+        drawBuildInfo();
         requestAnimationFrame(gameLoop);
         return;
     }
 
     if (gameState === 'settings') {
         drawSettingsMenu();
+        drawBuildInfo();
         requestAnimationFrame(gameLoop);
         return;
     }
@@ -1123,6 +1142,7 @@ function gameLoop() {
     // Handle cutscene
     if (cutsceneActive) {
         drawCutscene();
+        drawBuildInfo();
         requestAnimationFrame(gameLoop);
         return;
     }
@@ -1199,6 +1219,9 @@ function gameLoop() {
 
     // Draw phone interaction prompt and narrator dialogue
     drawPhoneInteraction();
+
+    // Draw build info (debug mode only)
+    drawBuildInfo();
 
     requestAnimationFrame(gameLoop);
 }
