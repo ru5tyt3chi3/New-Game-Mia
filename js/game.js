@@ -1289,99 +1289,137 @@ function drawUI() {
 }
 
 function drawMiniPhone() {
-    const phoneX = canvas.width - 55;
-    const phoneY = canvas.height - 95;
-    const phoneW = 40;
-    const phoneH = 75;
-    const cornerRadius = 4;
+    const phoneX = canvas.width - 70;
+    const phoneY = canvas.height - 75;
+    const baseW = 55;
+    const baseH = 35;
 
-    // Old phone body (yellowish-white cream color)
-    const bodyGradient = ctx.createLinearGradient(phoneX, phoneY, phoneX + phoneW, phoneY + phoneH);
-    bodyGradient.addColorStop(0, '#f5f0dc'); // Cream white
-    bodyGradient.addColorStop(0.5, '#e8e0c8'); // Slightly darker
-    bodyGradient.addColorStop(1, '#d9d0b8'); // Aged yellow-white
-    ctx.fillStyle = bodyGradient;
+    // Phone base (yellowish-cream vintage color)
+    const baseGradient = ctx.createLinearGradient(phoneX, phoneY, phoneX, phoneY + baseH);
+    baseGradient.addColorStop(0, '#f5ecd5');
+    baseGradient.addColorStop(0.5, '#e8dcc0');
+    baseGradient.addColorStop(1, '#d4c8a8');
+    ctx.fillStyle = baseGradient;
     ctx.beginPath();
-    ctx.roundRect(phoneX, phoneY, phoneW, phoneH, cornerRadius);
+    ctx.roundRect(phoneX, phoneY + 15, baseW, baseH, 6);
     ctx.fill();
 
-    // Phone border (darker aged edge)
-    ctx.strokeStyle = '#b8a880';
-    ctx.lineWidth = 2;
+    // Base shadow
+    ctx.fillStyle = 'rgba(0,0,0,0.2)';
     ctx.beginPath();
-    ctx.roundRect(phoneX, phoneY, phoneW, phoneH, cornerRadius);
+    ctx.roundRect(phoneX + 2, phoneY + 48, baseW - 4, 4, 2);
+    ctx.fill();
+
+    // Base border
+    ctx.strokeStyle = '#a89870';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.roundRect(phoneX, phoneY + 15, baseW, baseH, 6);
     ctx.stroke();
 
-    // Small green LCD screen (old Nokia style)
-    ctx.fillStyle = '#8bac0f'; // Classic LCD green
-    ctx.fillRect(phoneX + 5, phoneY + 8, phoneW - 10, 20);
+    // Rotary dial circle
+    const dialX = phoneX + baseW / 2;
+    const dialY = phoneY + 32;
+    const dialR = 12;
 
-    // Screen border
-    ctx.strokeStyle = '#5a5a4a';
-    ctx.lineWidth = 1;
-    ctx.strokeRect(phoneX + 5, phoneY + 8, phoneW - 10, 20);
+    // Dial base (darker)
+    ctx.fillStyle = '#c8b890';
+    ctx.beginPath();
+    ctx.arc(dialX, dialY, dialR, 0, Math.PI * 2);
+    ctx.fill();
 
-    // Screen content - simple time on LCD
-    ctx.fillStyle = '#306230'; // Dark LCD green for text
-    ctx.font = 'bold 9px monospace';
-    ctx.textAlign = 'center';
-    const now = new Date();
-    const timeStr = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
-    ctx.fillText(timeStr, phoneX + phoneW / 2, phoneY + 21);
+    // Dial inner circle (finger wheel area)
+    ctx.fillStyle = '#1a1a1a';
+    ctx.beginPath();
+    ctx.arc(dialX, dialY, dialR - 3, 0, Math.PI * 2);
+    ctx.fill();
 
-    // Battery indicator on screen
-    ctx.fillStyle = '#306230';
-    ctx.fillRect(phoneX + 22, phoneY + 11, 6, 3);
-    ctx.fillRect(phoneX + 28, phoneY + 12, 1, 1);
-
-    // Speaker holes at top
-    ctx.fillStyle = '#4a4a3a';
-    for (let i = 0; i < 4; i++) {
+    // Dial finger holes (10 holes for 0-9)
+    ctx.fillStyle = '#e8dcc0';
+    for (let i = 0; i < 10; i++) {
+        const angle = (i * Math.PI * 2 / 10) - Math.PI / 2;
+        const holeX = dialX + Math.cos(angle) * 6;
+        const holeY = dialY + Math.sin(angle) * 6;
         ctx.beginPath();
-        ctx.arc(phoneX + 12 + i * 5, phoneY + 4, 1, 0, Math.PI * 2);
+        ctx.arc(holeX, holeY, 1.5, 0, Math.PI * 2);
         ctx.fill();
     }
 
-    // Number pad buttons (3x4 grid)
-    ctx.fillStyle = '#c8c0a8'; // Button color
-    const btnSize = 6;
-    const btnGap = 2;
-    const startX = phoneX + 7;
-    const startY = phoneY + 32;
+    // Center of dial
+    ctx.fillStyle = '#2a2a2a';
+    ctx.beginPath();
+    ctx.arc(dialX, dialY, 2, 0, Math.PI * 2);
+    ctx.fill();
 
-    for (let row = 0; row < 4; row++) {
+    // Handset cradle bumps
+    ctx.fillStyle = '#b8a878';
+    ctx.beginPath();
+    ctx.arc(phoneX + 8, phoneY + 20, 3, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(phoneX + baseW - 8, phoneY + 20, 3, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Handset (resting on cradle)
+    const handsetGradient = ctx.createLinearGradient(phoneX + 5, phoneY, phoneX + 5, phoneY + 18);
+    handsetGradient.addColorStop(0, '#f0e8d0');
+    handsetGradient.addColorStop(1, '#d8ccb0');
+    ctx.fillStyle = handsetGradient;
+
+    // Handset body (curved shape)
+    ctx.beginPath();
+    ctx.moveTo(phoneX + 5, phoneY + 12);
+    ctx.quadraticCurveTo(phoneX + baseW / 2, phoneY + 5, phoneX + baseW - 5, phoneY + 12);
+    ctx.lineTo(phoneX + baseW - 5, phoneY + 18);
+    ctx.quadraticCurveTo(phoneX + baseW / 2, phoneY + 14, phoneX + 5, phoneY + 18);
+    ctx.closePath();
+    ctx.fill();
+
+    // Handset border
+    ctx.strokeStyle = '#a89870';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    // Earpiece (left end)
+    ctx.fillStyle = '#3a3a3a';
+    ctx.beginPath();
+    ctx.ellipse(phoneX + 8, phoneY + 14, 4, 5, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Mouthpiece (right end)
+    ctx.beginPath();
+    ctx.ellipse(phoneX + baseW - 8, phoneY + 14, 4, 5, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Speaker holes on earpiece
+    ctx.fillStyle = '#1a1a1a';
+    for (let i = 0; i < 3; i++) {
+        ctx.beginPath();
+        ctx.arc(phoneX + 7 + i * 2, phoneY + 14, 0.5, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    // Mouthpiece holes
+    for (let row = 0; row < 2; row++) {
         for (let col = 0; col < 3; col++) {
-            const bx = startX + col * (btnSize + btnGap);
-            const by = startY + row * (btnSize + btnGap);
-
-            // Button base
-            ctx.fillStyle = '#d0c8b0';
-            ctx.fillRect(bx, by, btnSize, btnSize);
-
-            // Button highlight (3D effect)
-            ctx.fillStyle = '#e8e0c8';
-            ctx.fillRect(bx, by, btnSize, 1);
-            ctx.fillRect(bx, by, 1, btnSize);
-
-            // Button shadow
-            ctx.fillStyle = '#a8a090';
-            ctx.fillRect(bx + btnSize - 1, by, 1, btnSize);
-            ctx.fillRect(bx, by + btnSize - 1, btnSize, 1);
+            ctx.beginPath();
+            ctx.arc(phoneX + baseW - 10 + col * 2, phoneY + 13 + row * 2, 0.5, 0, Math.PI * 2);
+            ctx.fill();
         }
     }
 
-    // Navigation button at bottom (oval)
-    ctx.fillStyle = '#b8b0a0';
+    // Coiled cord coming from base
+    ctx.strokeStyle = '#3a3a3a';
+    ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.ellipse(phoneX + phoneW / 2, phoneY + phoneH - 6, 8, 4, 0, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.strokeStyle = '#908878';
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.ellipse(phoneX + phoneW / 2, phoneY + phoneH - 6, 8, 4, 0, 0, Math.PI * 2);
+    ctx.moveTo(phoneX + baseW - 5, phoneY + 45);
+    for (let i = 0; i < 4; i++) {
+        ctx.quadraticCurveTo(
+            phoneX + baseW + 3, phoneY + 50 + i * 4,
+            phoneX + baseW - 2, phoneY + 52 + i * 4
+        );
+    }
     ctx.stroke();
-
-    ctx.textAlign = 'left';
 }
 
 // ============================================
