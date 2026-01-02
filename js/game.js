@@ -342,6 +342,59 @@ class SoundManager {
         noise.start();
         noise.stop(this.audioContext.currentTime + 0.5);
     }
+
+    playRing() {
+        if (this.muted || !this.initialized) return;
+
+        const now = this.audioContext.currentTime;
+
+        // Classic phone ring - two-tone bell sound
+        const playTone = (freq, startTime, duration) => {
+            const osc = this.audioContext.createOscillator();
+            const gain = this.audioContext.createGain();
+
+            osc.connect(gain);
+            gain.connect(this.sfxGain);
+
+            osc.type = 'sine';
+            osc.frequency.value = freq;
+
+            gain.gain.setValueAtTime(0, startTime);
+            gain.gain.linearRampToValueAtTime(0.2, startTime + 0.02);
+            gain.gain.setValueAtTime(0.2, startTime + duration - 0.02);
+            gain.gain.linearRampToValueAtTime(0, startTime + duration);
+
+            osc.start(startTime);
+            osc.stop(startTime + duration);
+        };
+
+        // Ring pattern: two quick tones
+        playTone(440, now, 0.1);
+        playTone(480, now + 0.1, 0.1);
+        playTone(440, now + 0.25, 0.1);
+        playTone(480, now + 0.35, 0.1);
+    }
+
+    playNarratorVoice() {
+        if (this.muted || !this.initialized) return;
+
+        // Typewriter-like click for narrator text
+        const osc = this.audioContext.createOscillator();
+        const gain = this.audioContext.createGain();
+
+        osc.connect(gain);
+        gain.connect(this.sfxGain);
+
+        osc.type = 'square';
+        osc.frequency.value = 800 + Math.random() * 200;
+
+        const now = this.audioContext.currentTime;
+        gain.gain.setValueAtTime(0.08, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.05);
+
+        osc.start(now);
+        osc.stop(now + 0.05);
+    }
 }
 
 const sound = new SoundManager();
@@ -763,6 +816,22 @@ const cutsceneMessages = [
     { text: "fast", duration: 100 }
 ];
 
+// Phone ringing / Narrator state
+let phoneRinging = false;
+let phoneAnswered = false;
+let narratorActive = false;
+let narratorTimer = 0;
+let narratorPhase = 0;
+let phoneRingTimer = 0;
+let firstGameStart = true; // Track if this is the first time playing
+const narratorMessages = [
+    { text: "Ahem...", duration: 90 },
+    { text: "Hello?", duration: 80 },
+    { text: "Is it working?", duration: 100 },
+    { text: "Ah yes. It's you!", duration: 110 },
+    { text: "Lets see... player... 34899277?", duration: 150 }
+];
+
 function loadLevel(levelIndex) {
     if (levelIndex >= levels.length) {
         // Game complete - restart from level 1
@@ -883,6 +952,12 @@ function initMenuButtons() {
             // Start music when game starts
             if (soundInitialized && !sound.muted) {
                 sound.startMusic();
+            }
+            // Trigger phone ringing on first game start
+            if (firstGameStart) {
+                phoneRinging = true;
+                phoneRingTimer = 0;
+                firstGameStart = false;
             }
         }),
         new Button(canvas.width / 2 - 100, 380, 200, 60, 'SETTINGS', () => {
@@ -1020,6 +1095,20 @@ function gameLoop() {
         return;
     }
 
+    // Handle phone ringing
+    if (phoneRinging && !phoneAnswered) {
+        phoneRingTimer++;
+        // Play ring sound every 60 frames (1 second)
+        if (phoneRingTimer % 60 === 1 && soundInitialized) {
+            sound.playRing();
+        }
+    }
+
+    // Handle narrator dialogue
+    if (narratorActive) {
+        narratorTimer++;
+    }
+
     // Clear and draw background
     drawBackground();
 
@@ -1067,6 +1156,9 @@ function gameLoop() {
 
     // Draw UI
     drawUI();
+
+    // Draw phone interaction prompt and narrator dialogue
+    drawPhoneInteraction();
 
     requestAnimationFrame(gameLoop);
 }
@@ -1289,10 +1381,24 @@ function drawUI() {
 }
 
 function drawMiniPhone() {
-    const phoneX = canvas.width - 70;
-    const phoneY = canvas.height - 75;
+    let phoneX = canvas.width - 70;
+    let phoneY = canvas.height - 75;
     const baseW = 55;
     const baseH = 35;
+
+    // Ringing animation - shake effect
+    if (phoneRinging && !phoneAnswered) {
+        const shakeIntensity = Math.sin(phoneRingTimer * 0.5) * 2;
+        phoneX += shakeIntensity;
+        phoneY += Math.cos(phoneRingTimer * 0.7) * 1;
+
+        // Glowing ring indicator
+        const glowPulse = (Math.sin(phoneRingTimer * 0.2) + 1) / 2;
+        ctx.fillStyle = `rgba(255, 200, 100, ${glowPulse * 0.4})`;
+        ctx.beginPath();
+        ctx.arc(phoneX + baseW / 2, phoneY + 25, 40, 0, Math.PI * 2);
+        ctx.fill();
+    }
 
     // Phone base (yellowish-cream vintage color)
     const baseGradient = ctx.createLinearGradient(phoneX, phoneY, phoneX, phoneY + baseH);
@@ -1422,6 +1528,101 @@ function drawMiniPhone() {
     ctx.stroke();
 }
 
+function drawPhoneInteraction() {
+    // Show "Press E to interact" prompt when phone is ringing
+    if (phoneRinging && !phoneAnswered) {
+        const promptX = canvas.width - 95;
+        const promptY = canvas.height - 100;
+
+        // Background box for prompt
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+        ctx.beginPath();
+        ctx.roundRect(promptX - 5, promptY - 15, 105, 25, 4);
+        ctx.fill();
+
+        // Pulsing text effect
+        const pulse = (Math.sin(phoneRingTimer * 0.1) + 1) / 2;
+        ctx.fillStyle = `rgba(255, 255, 255, ${0.7 + pulse * 0.3})`;
+        ctx.font = '12px "Segoe UI", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText("Press 'E' to answer", promptX + 47, promptY);
+        ctx.textAlign = 'left';
+    }
+
+    // Draw narrator dialogue box
+    if (narratorActive && narratorPhase < narratorMessages.length) {
+        // Calculate which message to show and how much of it
+        let totalTime = 0;
+        let currentMessage = null;
+        let messageStartTime = 0;
+
+        for (let i = 0; i <= narratorPhase && i < narratorMessages.length; i++) {
+            if (i === narratorPhase) {
+                currentMessage = narratorMessages[i];
+                messageStartTime = totalTime;
+                break;
+            }
+            totalTime += narratorMessages[i].duration + 30; // 30 frame gap between messages
+        }
+
+        if (currentMessage) {
+            const timeInMessage = narratorTimer - messageStartTime;
+
+            // Check if we should move to next message
+            if (timeInMessage > currentMessage.duration + 30) {
+                narratorPhase++;
+                if (narratorPhase >= narratorMessages.length) {
+                    narratorActive = false;
+                }
+            } else if (timeInMessage > 0 && timeInMessage <= currentMessage.duration) {
+                // Draw dialogue box at bottom of screen
+                const boxWidth = 500;
+                const boxHeight = 80;
+                const boxX = (canvas.width - boxWidth) / 2;
+                const boxY = canvas.height - boxHeight - 20;
+
+                // Semi-transparent background
+                ctx.fillStyle = 'rgba(20, 20, 40, 0.9)';
+                ctx.beginPath();
+                ctx.roundRect(boxX, boxY, boxWidth, boxHeight, 8);
+                ctx.fill();
+
+                // Border
+                ctx.strokeStyle = '#e94560';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.roundRect(boxX, boxY, boxWidth, boxHeight, 8);
+                ctx.stroke();
+
+                // "Narrator" label
+                ctx.fillStyle = '#e94560';
+                ctx.font = 'bold 14px "Segoe UI", sans-serif';
+                ctx.fillText('???', boxX + 20, boxY + 25);
+
+                // Typewriter effect for the message
+                const charsToShow = Math.floor(timeInMessage / 3); // Show one char every 3 frames
+                const displayText = currentMessage.text.substring(0, charsToShow);
+
+                // Play sound for each new character
+                if (charsToShow > 0 && charsToShow <= currentMessage.text.length && timeInMessage % 3 === 1) {
+                    sound.playNarratorVoice();
+                }
+
+                ctx.fillStyle = '#ffffff';
+                ctx.font = '20px "Segoe UI", sans-serif';
+                ctx.fillText(displayText, boxX + 20, boxY + 55);
+
+                // Blinking cursor
+                if (charsToShow < currentMessage.text.length && Math.floor(narratorTimer / 15) % 2 === 0) {
+                    const textWidth = ctx.measureText(displayText).width;
+                    ctx.fillStyle = '#ffffff';
+                    ctx.fillRect(boxX + 22 + textWidth, boxY + 40, 2, 20);
+                }
+            }
+        }
+    }
+}
+
 // ============================================
 // Input Event Listeners
 // ============================================
@@ -1499,6 +1700,16 @@ document.addEventListener('keydown', (e) => {
             break;
         case 'm':
             sound.toggleMute();
+            break;
+        case 'e':
+            // Answer the phone
+            if (phoneRinging && !phoneAnswered && gameState === 'playing') {
+                phoneAnswered = true;
+                phoneRinging = false;
+                narratorActive = true;
+                narratorTimer = 0;
+                narratorPhase = 0;
+            }
             break;
         case 'r':
             // Restart current level
