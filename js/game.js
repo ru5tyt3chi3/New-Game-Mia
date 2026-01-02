@@ -1283,6 +1283,81 @@ function drawUI() {
     // Level progress
     ctx.fillStyle = '#a0a0a0';
     ctx.fillText(`${currentLevel + 1}/${levels.length}`, canvas.width - 100, 45);
+
+    // Mini phone in bottom right corner
+    drawMiniPhone();
+}
+
+function drawMiniPhone() {
+    const phoneX = canvas.width - 55;
+    const phoneY = canvas.height - 95;
+    const phoneW = 40;
+    const phoneH = 75;
+    const cornerRadius = 6;
+
+    // Phone body (dark gray with rounded corners)
+    ctx.fillStyle = '#2a2a2a';
+    ctx.beginPath();
+    ctx.roundRect(phoneX, phoneY, phoneW, phoneH, cornerRadius);
+    ctx.fill();
+
+    // Phone border/frame
+    ctx.strokeStyle = '#444444';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.roundRect(phoneX, phoneY, phoneW, phoneH, cornerRadius);
+    ctx.stroke();
+
+    // Screen area
+    ctx.fillStyle = '#1a1a3e';
+    ctx.fillRect(phoneX + 4, phoneY + 10, phoneW - 8, phoneH - 22);
+
+    // Screen glow effect
+    const screenGlow = ctx.createLinearGradient(phoneX + 4, phoneY + 10, phoneX + 4, phoneY + phoneH - 12);
+    screenGlow.addColorStop(0, 'rgba(100, 150, 255, 0.15)');
+    screenGlow.addColorStop(1, 'rgba(50, 100, 200, 0.05)');
+    ctx.fillStyle = screenGlow;
+    ctx.fillRect(phoneX + 4, phoneY + 10, phoneW - 8, phoneH - 22);
+
+    // Speaker at top
+    ctx.fillStyle = '#1a1a1a';
+    ctx.fillRect(phoneX + 14, phoneY + 4, 12, 2);
+
+    // Home button at bottom
+    ctx.fillStyle = '#1a1a1a';
+    ctx.beginPath();
+    ctx.arc(phoneX + phoneW / 2, phoneY + phoneH - 6, 4, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Simple content on screen - time display
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '8px "Segoe UI", sans-serif';
+    ctx.textAlign = 'center';
+    const now = new Date();
+    const timeStr = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
+    ctx.fillText(timeStr, phoneX + phoneW / 2, phoneY + 25);
+
+    // Battery icon
+    ctx.fillStyle = '#5cb85c';
+    ctx.fillRect(phoneX + phoneW - 12, phoneY + 14, 6, 3);
+
+    // Signal bars
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(phoneX + 6, phoneY + 15, 2, 2);
+    ctx.fillRect(phoneX + 9, phoneY + 14, 2, 3);
+    ctx.fillRect(phoneX + 12, phoneY + 13, 2, 4);
+
+    // App icons on screen
+    ctx.fillStyle = '#e94560';
+    ctx.fillRect(phoneX + 8, phoneY + 32, 8, 8);
+    ctx.fillStyle = '#5cb85c';
+    ctx.fillRect(phoneX + 20, phoneY + 32, 8, 8);
+    ctx.fillStyle = '#4a90a4';
+    ctx.fillRect(phoneX + 8, phoneY + 44, 8, 8);
+    ctx.fillStyle = '#ffd700';
+    ctx.fillRect(phoneX + 20, phoneY + 44, 8, 8);
+
+    ctx.textAlign = 'left';
 }
 
 // ============================================
