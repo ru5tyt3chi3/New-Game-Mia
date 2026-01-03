@@ -4,7 +4,7 @@
 
 // Build Info (for debugging - set DEBUG_MODE to false for release)
 const BUILD_VERSION = "0.1.0";
-const BUILD_NUMBER = 22;
+const BUILD_NUMBER = 23;
 const BUILD_DATE = "2026-01-03";
 const DEBUG_MODE = true;
 
@@ -2229,9 +2229,59 @@ function gameLoop() {
             }
         }
 
-        // Set talking state for player character dialogue
-        player.isTalking = level9PlayerDialogueActive ||
-            (level9SecondCallTriggered && phoneRinging && !phoneAnswered && !level9SecondCallActive);
+        // Set talking state for player character (Ping/???) dialogue
+        // Check all dialogue states where ??? speaks
+        let pingIsTalking = false;
+
+        // Level 1 first phone call (all ??? speaker)
+        if (narratorActive && narratorPhase < narratorMessages.length) {
+            pingIsTalking = true;
+        }
+
+        // Level 1 choice responses (check if current message is ???)
+        if (choiceMessagePhase > 0 && choiceMessagePhase <= choice1Responses.length) {
+            const responses = selectedChoice === 0 ? choice1Responses : choice2Responses;
+            const responseIndex = choiceMessagePhase - 1;
+            if (responseIndex < responses.length && responses[responseIndex].speaker === '???') {
+                pingIsTalking = true;
+            }
+        }
+
+        // Level 9 player dialogue (all ??? speaker)
+        if (level9PlayerDialogueActive) {
+            pingIsTalking = true;
+        }
+
+        // Level 9 "Oh crap-!" reaction
+        if (level9SecondCallTriggered && phoneRinging && !phoneAnswered && !level9SecondCallActive) {
+            pingIsTalking = true;
+        }
+
+        // Level 9 second call dialogue (check if current message is ???)
+        if (level9SecondCallActive && level9SecondPhase < level9SecondCallMessages.length) {
+            if (level9SecondCallMessages[level9SecondPhase].speaker === '???') {
+                pingIsTalking = true;
+            }
+        }
+
+        // Level 9 choice responses (check if current message is ???)
+        if (level9ChoiceResponsePhase > 0) {
+            const responses = level9ChoiceResponses[level9SelectedChoice];
+            const responseIndex = level9ChoiceResponsePhase - 1;
+            if (responses && responseIndex < responses.length && responses[responseIndex].speaker === '???') {
+                pingIsTalking = true;
+            }
+        }
+
+        // Level 10 intro dialogue (check if current message is ???)
+        if (level10IntroActive && level10IntroPhase < levels[currentLevel]?.introDialogue?.length) {
+            const message = levels[currentLevel].introDialogue[level10IntroPhase];
+            if (message && message.speaker === '???') {
+                pingIsTalking = true;
+            }
+        }
+
+        player.isTalking = pingIsTalking;
 
         player.draw();
 
@@ -2997,8 +3047,7 @@ function drawPhoneInteraction() {
                     level10IntroActive = false;
                 }
             } else {
-                // Player is talking during intro
-                player.isTalking = true;
+                // Draw intro dialogue (talking state handled in main update)
                 drawDialogueBox(message.speaker, message.text, level10IntroTimer);
             }
         }
