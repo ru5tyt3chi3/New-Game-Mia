@@ -4,7 +4,7 @@
 
 // Build Info (for debugging - set DEBUG_MODE to false for release)
 const BUILD_VERSION = "0.1.0";
-const BUILD_NUMBER = 16;
+const BUILD_NUMBER = 17;
 const BUILD_DATE = "2026-01-02";
 const DEBUG_MODE = true;
 
@@ -1250,12 +1250,12 @@ function loadLevel(levelIndex) {
         phoneRingTimer = 0;
     }
 
-    // Trigger Level 9 narrator intro (key and door tutorial)
+    // Trigger Level 9 phone call (key and door tutorial)
     if (levelIndex === 8 && !level9IntroTriggered) {
         level9IntroTriggered = true;
-        level9NarratorActive = true;
-        level9MessagePhase = 0;
-        level9MessageTimer = 0;
+        phoneRinging = true;
+        phoneAnswered = false;
+        phoneRingTimer = 0;
     }
 
     levelComplete = false;
@@ -2289,13 +2289,40 @@ function drawPhoneInteraction() {
 }
 
 function drawDialogueBox(speaker, text, timeInMessage) {
-    const boxWidth = 500;
-    const boxHeight = 80;
+    const boxWidth = 600;
+    const maxTextWidth = boxWidth - 40; // Padding on both sides
+    const lineHeight = 24;
+
+    // Set font for measuring
+    ctx.font = '18px "Segoe UI", sans-serif';
+
+    // Word wrap the text
+    const words = text.split(' ');
+    const lines = [];
+    let currentLine = '';
+
+    for (const word of words) {
+        const testLine = currentLine ? currentLine + ' ' + word : word;
+        const testWidth = ctx.measureText(testLine).width;
+
+        if (testWidth > maxTextWidth && currentLine) {
+            lines.push(currentLine);
+            currentLine = word;
+        } else {
+            currentLine = testLine;
+        }
+    }
+    if (currentLine) {
+        lines.push(currentLine);
+    }
+
+    // Calculate box height based on number of lines
+    const boxHeight = 60 + (lines.length * lineHeight);
     const boxX = (canvas.width - boxWidth) / 2;
     const boxY = canvas.height - boxHeight - 20;
 
     // Semi-transparent background
-    ctx.fillStyle = 'rgba(20, 20, 40, 0.9)';
+    ctx.fillStyle = 'rgba(20, 20, 40, 0.95)';
     ctx.beginPath();
     ctx.roundRect(boxX, boxY, boxWidth, boxHeight, 8);
     ctx.fill();
@@ -2310,10 +2337,10 @@ function drawDialogueBox(speaker, text, timeInMessage) {
     // Speaker label
     ctx.fillStyle = speaker === 'Narrator' ? '#4a90d9' : '#e94560';
     ctx.font = 'bold 14px "Segoe UI", sans-serif';
-    ctx.fillText(speaker, boxX + 20, boxY + 25);
+    ctx.fillText(speaker, boxX + 20, boxY + 22);
 
     // Typewriter effect for the message
-    const charsToShow = Math.floor(timeInMessage / 3);
+    const charsToShow = Math.floor(timeInMessage / 2); // Slightly faster typing
     const displayText = text.substring(0, charsToShow);
 
     // Play sound for each new character
@@ -2321,15 +2348,39 @@ function drawDialogueBox(speaker, text, timeInMessage) {
         sound.playNarratorVoice();
     }
 
+    // Draw wrapped text with typewriter effect
     ctx.fillStyle = '#ffffff';
-    ctx.font = '20px "Segoe UI", sans-serif';
-    ctx.fillText(displayText, boxX + 20, boxY + 55);
+    ctx.font = '18px "Segoe UI", sans-serif';
 
-    // Blinking cursor
-    if (charsToShow < text.length && Math.floor(timeInMessage / 15) % 2 === 0) {
-        const textWidth = ctx.measureText(displayText).width;
-        ctx.fillStyle = '#ffffff';
-        ctx.fillRect(boxX + 22 + textWidth, boxY + 40, 2, 20);
+    let charsDrawn = 0;
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        const lineStart = charsDrawn;
+        const lineEnd = charsDrawn + line.length;
+
+        if (charsToShow > lineStart) {
+            const visibleChars = Math.min(charsToShow - lineStart, line.length);
+            const visibleText = line.substring(0, visibleChars);
+            ctx.fillText(visibleText, boxX + 20, boxY + 45 + (i * lineHeight));
+
+            // Draw cursor at end of current line being typed
+            if (charsToShow < lineEnd && charsToShow >= lineStart) {
+                if (Math.floor(timeInMessage / 15) % 2 === 0) {
+                    const cursorX = boxX + 20 + ctx.measureText(visibleText).width;
+                    ctx.fillRect(cursorX + 2, boxY + 30 + (i * lineHeight), 2, 18);
+                }
+            }
+        }
+        charsDrawn += line.length + 1; // +1 for the space between words
+    }
+
+    // "Press Enter to skip" hint (shown when text is complete)
+    if (charsToShow >= text.length) {
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+        ctx.font = '12px "Segoe UI", sans-serif';
+        ctx.textAlign = 'right';
+        ctx.fillText('Press Enter to continue', boxX + boxWidth - 15, boxY + boxHeight - 8);
+        ctx.textAlign = 'left';
     }
 }
 
@@ -2417,12 +2468,19 @@ document.addEventListener('keydown', (e) => {
                 phoneAnswered = true;
                 phoneRinging = false;
 
-                // Check if this is Level 8 phone call
+                // Check which level's phone call this is
                 if (currentLevel === 7 && level8PhoneTriggered) {
+                    // Level 8 phone call
                     level8NarratorActive = true;
                     level8MessagePhase = 0;
                     level8MessageTimer = 0;
+                } else if (currentLevel === 8 && level9IntroTriggered) {
+                    // Level 9 phone call
+                    level9NarratorActive = true;
+                    level9MessagePhase = 0;
+                    level9MessageTimer = 0;
                 } else {
+                    // Initial game phone call
                     narratorActive = true;
                     narratorTimer = 0;
                     narratorPhase = 0;
@@ -2467,6 +2525,41 @@ document.addEventListener('keydown', (e) => {
                 // Reset game state
                 cutsceneActive = false;
                 levelComplete = false;
+            }
+            break;
+        case 'enter':
+            // Skip dialogue / advance to next message
+            if (gameState === 'playing') {
+                if (narratorActive) {
+                    narratorPhase++;
+                    narratorTimer = 0;
+                    if (narratorPhase >= narratorMessages.length) {
+                        narratorActive = false;
+                        dialogueChoiceActive = true;
+                        selectedChoice = 0;
+                    }
+                } else if (choiceMessagePhase > 0) {
+                    // Skip choice response messages
+                    const responses = selectedChoice === 0 ? choice1Responses : choice2Responses;
+                    choiceMessagePhase++;
+                    choiceMessageTimer = 0;
+                    if (choiceMessagePhase > responses.length) {
+                        choiceMessagePhase = 0;
+                        dialogueChoiceActive = false;
+                    }
+                } else if (level8NarratorActive) {
+                    level8MessagePhase++;
+                    level8MessageTimer = 0;
+                    if (level8MessagePhase >= level8NarratorMessages.length) {
+                        level8NarratorActive = false;
+                    }
+                } else if (level9NarratorActive) {
+                    level9MessagePhase++;
+                    level9MessageTimer = 0;
+                    if (level9MessagePhase >= level9NarratorMessages.length) {
+                        level9NarratorActive = false;
+                    }
+                }
             }
             break;
         // Arrow keys for dialogue choice selection
