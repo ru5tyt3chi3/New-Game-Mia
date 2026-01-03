@@ -4,7 +4,7 @@
 
 // Build Info (for debugging - set DEBUG_MODE to false for release)
 const BUILD_VERSION = "0.1.0";
-const BUILD_NUMBER = 29;
+const BUILD_NUMBER = 30;
 const BUILD_DATE = "2026-01-03";
 const DEBUG_MODE = true;
 
@@ -1744,8 +1744,18 @@ function loadLevel(levelIndex) {
     currentStage = 1;
 
     // Create platforms (with bloody flag support)
-    // For multi-stage levels, use stage1 platforms
-    const platformData = level.hasStages ? level.stage1.platforms : level.platforms;
+    // For multi-stage levels, use stage1 platforms (or ventPlatforms for office levels)
+    let platformData;
+    if (level.hasStages) {
+        // For office levels with vent systems, use ventPlatforms
+        if (level.isOfficeLevel && level.stage1.ventPlatforms) {
+            platformData = level.stage1.ventPlatforms;
+        } else {
+            platformData = level.stage1.platforms;
+        }
+    } else {
+        platformData = level.platforms;
+    }
     platforms = platformData.map(p =>
         new Platform(p.x, p.y, p.w, p.h, '#3d5a80', p.bloody || false)
     );
