@@ -4,7 +4,7 @@
 
 // Build Info (for debugging - set DEBUG_MODE to false for release)
 const BUILD_VERSION = "0.1.0";
-const BUILD_NUMBER = 24;
+const BUILD_NUMBER = 25;
 const BUILD_DATE = "2026-01-03";
 const DEBUG_MODE = true;
 
@@ -2233,10 +2233,8 @@ function gameLoop() {
         // Check all dialogue states where ??? speaks
         let pingIsTalking = false;
 
-        // Level 1 first phone call (all ??? speaker)
-        if (narratorActive && narratorPhase < narratorMessages.length) {
-            pingIsTalking = true;
-        }
+        // NOTE: Level 1 first phone call intentionally has NO talking animation
+        // (Ping is mysterious at this point, we don't show them talking yet)
 
         // Level 1 choice responses (check if current message is ???)
         if (choiceMessagePhase > 0 && choiceMessagePhase <= choice1Responses.length) {
