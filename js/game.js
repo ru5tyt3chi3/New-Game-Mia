@@ -4,7 +4,7 @@
 
 // Build Info (for debugging - set DEBUG_MODE to false for release)
 const BUILD_VERSION = "0.1.0";
-const BUILD_NUMBER = 30;
+const BUILD_NUMBER = 31;
 const BUILD_DATE = "2026-01-03";
 const DEBUG_MODE = true;
 
@@ -429,6 +429,40 @@ class SoundManager {
             gain.gain.exponentialRampToValueAtTime(0.01, now + 0.04);
             osc.start(now);
             osc.stop(now + 0.04);
+        } else if (speaker === 'Exec 1' || speaker === 'Exec 2') {
+            // Executives - deep, authoritative, slower
+            osc.type = 'sawtooth';
+            const basePitch = speaker === 'Exec 1' ? 280 : 250;
+            osc.frequency.value = basePitch + Math.random() * 60;
+            gain.gain.setValueAtTime(0.07, now);
+            gain.gain.exponentialRampToValueAtTime(0.01, now + 0.08);
+            osc.start(now);
+            osc.stop(now + 0.08);
+        } else if (speaker === 'HR') {
+            // HR - clinical, cold, precise
+            osc.type = 'triangle';
+            osc.frequency.value = 450 + Math.random() * 50;
+            gain.gain.setValueAtTime(0.06, now);
+            gain.gain.exponentialRampToValueAtTime(0.01, now + 0.045);
+            osc.start(now);
+            osc.stop(now + 0.045);
+        } else if (speaker === 'Archivist 1' || speaker === 'Archivist 2') {
+            // Archivists - hushed, whispered, quiet
+            osc.type = 'sine';
+            const basePitch = speaker === 'Archivist 1' ? 380 : 340;
+            osc.frequency.value = basePitch + Math.random() * 80;
+            gain.gain.setValueAtTime(0.04, now);
+            gain.gain.exponentialRampToValueAtTime(0.005, now + 0.06);
+            osc.start(now);
+            osc.stop(now + 0.06);
+        } else if (speaker === 'Worker') {
+            // Solo worker - same as Worker 1/2 but consistent
+            osc.type = 'triangle';
+            osc.frequency.value = 375 + Math.random() * 100;
+            gain.gain.setValueAtTime(0.07, now);
+            gain.gain.exponentialRampToValueAtTime(0.01, now + 0.06);
+            osc.start(now);
+            osc.stop(now + 0.06);
         } else if (speaker === 'Ping') {
             // Player character when named - soft, warm
             osc.type = 'sine';
