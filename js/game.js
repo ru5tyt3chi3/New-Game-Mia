@@ -4,7 +4,7 @@
 
 // Build Info (for debugging - set DEBUG_MODE to false for release)
 const BUILD_VERSION = "0.1.0";
-const BUILD_NUMBER = 25;
+const BUILD_NUMBER = 26;
 const BUILD_DATE = "2026-01-03";
 const DEBUG_MODE = true;
 
@@ -2264,7 +2264,9 @@ function gameLoop() {
 
         // Level 9 choice responses (check if current message is ???)
         if (level9ChoiceResponsePhase > 0) {
-            const responses = level9ChoiceResponses[level9SelectedChoice];
+            const responses = level9SelectedChoice === 0 ? level9Choice1Responses :
+                             level9SelectedChoice === 1 ? level9Choice2Responses :
+                             level9Choice3Responses;
             const responseIndex = level9ChoiceResponsePhase - 1;
             if (responses && responseIndex < responses.length && responses[responseIndex].speaker === '???') {
                 pingIsTalking = true;
