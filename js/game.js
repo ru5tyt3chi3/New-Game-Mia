@@ -4,7 +4,7 @@
 
 // Build Info (for debugging - set DEBUG_MODE to false for release)
 const BUILD_VERSION = "0.1.0";
-const BUILD_NUMBER = 28;
+const BUILD_NUMBER = 29;
 const BUILD_DATE = "2026-01-03";
 const DEBUG_MODE = true;
 
@@ -1327,7 +1327,7 @@ const levels = [
             { x: 520, y: 300, w: 100, h: 25 },
         ]
     },
-    // Level 8 - Dark Office / Vent Crawl
+    // Level 8 - Dark Office / Vent Crawl (two stages)
     {
         name: "The Office",
         playerStart: { x: 50, y: 480 },
@@ -1335,6 +1335,7 @@ const levels = [
         isDark: true,
         noMusic: true,
         hasVentSystem: true,
+        hasStages: true,
         // Intro dialogue from player character
         introDialogue: [
             { text: "...", speaker: "???" },
@@ -1344,7 +1345,140 @@ const levels = [
             { text: "Move me! Move us! Move! Put us in the vent before he sees!", speaker: "???" },
             { text: "What...? Okay...", speaker: "You" }
         ],
-        // Vent peek locations - rooms you can spy on (positioned along the climbing path)
+        // Stage 1: Climb up through vents
+        stage1: {
+            ventPeeks: [
+                {
+                    id: 'room1',
+                    x: 100, y: 420,
+                    roomName: "Break Room",
+                    npcs: [
+                        { x: 50, y: 80, color: '#555555' },
+                        { x: 120, y: 80, color: '#444444' }
+                    ],
+                    dialogue: [
+                        { speaker: "Worker 1", text: "Did you hear about the new guy?" },
+                        { speaker: "Worker 2", text: "Yeah... something's off about him." },
+                        { speaker: "Worker 1", text: "He never leaves his desk." },
+                        { speaker: "Worker 2", text: "I heard typing at 3 AM once..." }
+                    ]
+                },
+                {
+                    id: 'room2',
+                    x: 350, y: 300,
+                    roomName: "Copy Room",
+                    npcs: [
+                        { x: 80, y: 80, color: '#4a4a4a' }
+                    ],
+                    dialogue: [
+                        { speaker: "Worker", text: "These reports don't make sense..." },
+                        { speaker: "Worker", text: "Why does management need all this data?" },
+                        { speaker: "Worker", text: "...I should stop asking questions." }
+                    ]
+                },
+                {
+                    id: 'room3',
+                    x: 550, y: 180,
+                    roomName: "Server Room",
+                    npcs: [
+                        { x: 70, y: 70, color: '#3a3a3a' },
+                        { x: 130, y: 85, color: '#505050' }
+                    ],
+                    dialogue: [
+                        { speaker: "Tech 1", text: "The servers are running hot again." },
+                        { speaker: "Tech 2", text: "It's like something's using all the processing power." },
+                        { speaker: "Tech 1", text: "For what though?" },
+                        { speaker: "Tech 2", text: "I... I don't want to know." }
+                    ]
+                }
+            ],
+            ventPlatforms: [
+                // Ground level
+                { x: 0, y: 550, w: 200, h: 50, isVent: true },
+                // First vent peek area (Break Room)
+                { x: 50, y: 450, w: 120, h: 20, isVent: true },
+                // Climbing platforms
+                { x: 200, y: 400, w: 100, h: 20, isVent: true },
+                // Second vent peek area (Copy Room)
+                { x: 300, y: 330, w: 120, h: 20, isVent: true },
+                // More climbing
+                { x: 450, y: 270, w: 100, h: 20, isVent: true },
+                // Third vent peek area (Server Room)
+                { x: 500, y: 210, w: 120, h: 20, isVent: true },
+                // Final climb to door
+                { x: 650, y: 150, w: 100, h: 20, isVent: true },
+                // Door platform at top
+                { x: 700, y: 90, w: 100, h: 20, isVent: true },
+            ]
+        },
+        // Stage 2: Continue through vents after door - descending
+        stage2: {
+            playerStart: { x: 50, y: 100 },
+            goal: { x: 700, y: 500 },
+            ventPeeks: [
+                {
+                    id: 'room4',
+                    x: 150, y: 180,
+                    roomName: "Executive Lounge",
+                    npcs: [
+                        { x: 60, y: 75, color: '#2a2a2a' },
+                        { x: 140, y: 80, color: '#333333' }
+                    ],
+                    dialogue: [
+                        { speaker: "Exec 1", text: "The contract is almost finalized." },
+                        { speaker: "Exec 2", text: "Good. The red one has been... cooperative." },
+                        { speaker: "Exec 1", text: "Ping doesn't even know what it's doing." },
+                        { speaker: "Exec 2", text: "That's the beauty of it. Complete automation." }
+                    ]
+                },
+                {
+                    id: 'room5',
+                    x: 400, y: 300,
+                    roomName: "HR Office",
+                    npcs: [
+                        { x: 90, y: 80, color: '#484848' }
+                    ],
+                    dialogue: [
+                        { speaker: "HR", text: "Employee file: Ping." },
+                        { speaker: "HR", text: "Status: Active. Classification: Asset." },
+                        { speaker: "HR", text: "Notes: Subject unaware of true purpose." },
+                        { speaker: "HR", text: "Contract binding upon... completion." }
+                    ]
+                },
+                {
+                    id: 'room6',
+                    x: 600, y: 420,
+                    roomName: "Archive Room",
+                    npcs: [
+                        { x: 70, y: 70, color: '#3d3d3d' },
+                        { x: 130, y: 85, color: '#4f4f4f' }
+                    ],
+                    dialogue: [
+                        { speaker: "Archivist 1", text: "Why do they keep files on the red one?" },
+                        { speaker: "Archivist 2", text: "Ping? It's been here longer than any of us." },
+                        { speaker: "Archivist 1", text: "But what IS it exactly?" },
+                        { speaker: "Archivist 2", text: "Don't ask. Just... don't." }
+                    ]
+                }
+            ],
+            ventPlatforms: [
+                // Start platform (coming from door)
+                { x: 0, y: 150, w: 150, h: 20, isVent: true },
+                // First peek area (Executive Lounge)
+                { x: 100, y: 220, w: 120, h: 20, isVent: true },
+                // Descending platforms
+                { x: 250, y: 280, w: 100, h: 20, isVent: true },
+                // Second peek area (HR Office)
+                { x: 350, y: 340, w: 120, h: 20, isVent: true },
+                // More descent
+                { x: 500, y: 400, w: 100, h: 20, isVent: true },
+                // Third peek area (Archive Room)
+                { x: 550, y: 460, w: 120, h: 20, isVent: true },
+                // Final platform with goal
+                { x: 650, y: 550, w: 150, h: 50, isVent: true },
+            ]
+        },
+        // Legacy vent peeks (for stage 1 initial load)
         ventPeeks: [
             {
                 id: 'room1',
@@ -1390,7 +1524,7 @@ const levels = [
                 ]
             }
         ],
-        // Vent path platforms - climbing UP to the flag with vents along the way
+        // Legacy vent platforms (for stage 1 initial load)
         ventPlatforms: [
             // Ground level
             { x: 0, y: 550, w: 200, h: 50, isVent: true },
@@ -1404,7 +1538,7 @@ const levels = [
             { x: 450, y: 270, w: 100, h: 20, isVent: true },
             // Third vent peek area (Server Room)
             { x: 500, y: 210, w: 120, h: 20, isVent: true },
-            // Final climb to flag
+            // Final climb to door
             { x: 650, y: 150, w: 100, h: 20, isVent: true },
             // Door platform at top
             { x: 700, y: 90, w: 100, h: 20, isVent: true },
@@ -1413,12 +1547,10 @@ const levels = [
         platforms: [
             { x: 0, y: 550, w: 800, h: 50 }
         ],
-        // Door at the highest point (already unlocked)
+        // Door at the top of stage 1 (triggers stage 2)
         hasDoor: true,
         doorPosition: { x: 725, y: 10 },
-        doorUnlocked: true,
-        // Goal behind the door
-        goal: { x: 730, y: 30 }
+        doorUnlocked: true
     }
 ];
 
@@ -1716,10 +1848,32 @@ function loadStage2() {
 
     currentStage = 2;
 
-    // Load stage 2 platforms
-    platforms = level.stage2.platforms.map(p =>
-        new Platform(p.x, p.y, p.w, p.h, '#3d5a80', p.bloody || false)
-    );
+    // Handle office levels with vent systems
+    if (level.isOfficeLevel && level.stage2.ventPlatforms) {
+        // Load vent platforms for stage 2
+        platforms = level.stage2.ventPlatforms.map(p =>
+            new Platform(p.x, p.y, p.w, p.h, '#2a3a4a', false)
+        );
+
+        // Load new vent peek points for stage 2
+        if (level.stage2.ventPeeks) {
+            ventPeekPoints = level.stage2.ventPeeks.map(vp => new VentPeekPoint(vp));
+        }
+
+        // Reset peek state
+        isPeeking = false;
+        currentPeekPoint = null;
+        peekDialoguePhase = 0;
+        peekDialogueTimer = 0;
+
+        // Stay in vent mode
+        isInVent = true;
+    } else {
+        // Normal stage 2 platforms
+        platforms = level.stage2.platforms.map(p =>
+            new Platform(p.x, p.y, p.w, p.h, '#3d5a80', p.bloody || false)
+        );
+    }
 
     // Create the goal in stage 2
     goal = new Goal(level.stage2.goal.x, level.stage2.goal.y, level.hasBlood);
@@ -2190,8 +2344,8 @@ function gameLoop() {
         if (!isInDialogue) {
             player.update(platforms);
 
-            // Check door collision (block player if door not open)
-            if (levelDoor && levelDoor.blocksPlayer(player)) {
+            // Check door collision (block player if door not open, but not in vent system)
+            if (levelDoor && !isInVent && levelDoor.blocksPlayer(player)) {
                 // Push player back
                 if (player.x + player.width / 2 < levelDoor.x + levelDoor.width / 2) {
                     player.x = levelDoor.x - player.width;
@@ -2252,6 +2406,18 @@ function gameLoop() {
         // Check key collision
         if (levelKey && !levelKey.collected) {
             levelKey.checkCollision(player);
+        }
+
+        // Check door walk-through in vent system (automatically triggers stage 2)
+        if (isInVent && levelDoor && levels[currentLevel]?.hasStages && currentStage === 1) {
+            // Check if player collides with door
+            if (player.x + player.width > levelDoor.x &&
+                player.x < levelDoor.x + levelDoor.width &&
+                player.y + player.height > levelDoor.y &&
+                player.y < levelDoor.y + levelDoor.height) {
+                // Transition to stage 2
+                loadStage2();
+            }
         }
 
         // Check goal collision (only if not in dialogue and door is open or no door)
