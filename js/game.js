@@ -4,8 +4,8 @@
 
 // Build Info (for debugging - set DEBUG_MODE to false for release)
 const BUILD_VERSION = "0.1.0";
-const BUILD_NUMBER = 20;
-const BUILD_DATE = "2026-01-02";
+const BUILD_NUMBER = 21;
+const BUILD_DATE = "2026-01-03";
 const DEBUG_MODE = true;
 
 const canvas = document.getElementById('gameCanvas');
