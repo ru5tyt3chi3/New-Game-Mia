@@ -4,7 +4,7 @@
 
 // Build Info (for debugging - set DEBUG_MODE to false for release)
 const BUILD_VERSION = "0.1.0";
-const BUILD_NUMBER = 19;
+const BUILD_NUMBER = 20;
 const BUILD_DATE = "2026-01-02";
 const DEBUG_MODE = true;
 
@@ -903,6 +903,231 @@ class Door {
 }
 
 // ============================================
+// Distorted Figure Class (Level 10 entity)
+// ============================================
+class DistortedFigure {
+    constructor(x, y) {
+        this.x = x;
+        this.y = y;
+        this.width = 40;
+        this.height = 60;
+        this.tentacles = [];
+        this.animFrame = 0;
+        this.typingFrame = 0;
+
+        // Generate tentacle positions
+        for (let i = 0; i < 6; i++) {
+            this.tentacles.push({
+                angle: (Math.PI / 6) * i - Math.PI / 2,
+                length: 30 + Math.random() * 20,
+                speed: 0.02 + Math.random() * 0.02,
+                phase: Math.random() * Math.PI * 2
+            });
+        }
+    }
+
+    update() {
+        this.animFrame += 0.02;
+        this.typingFrame += 0.15;
+    }
+
+    draw(ctx) {
+        // Office chair
+        ctx.fillStyle = '#1a1a1a';
+        ctx.fillRect(this.x - 15, this.y + 40, 30, 10);
+        ctx.fillRect(this.x - 5, this.y + 50, 10, 20);
+        // Chair wheels
+        ctx.fillStyle = '#0a0a0a';
+        ctx.beginPath();
+        ctx.arc(this.x - 10, this.y + 70, 4, 0, Math.PI * 2);
+        ctx.arc(this.x + 10, this.y + 70, 4, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Tentacles (coming from the figure)
+        for (const t of this.tentacles) {
+            const wave = Math.sin(this.animFrame * t.speed * 50 + t.phase) * 10;
+            ctx.strokeStyle = '#0a0a0a';
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            ctx.moveTo(this.x, this.y + 20);
+
+            const endX = this.x + Math.cos(t.angle + wave * 0.02) * t.length;
+            const endY = this.y + 20 + Math.sin(t.angle + wave * 0.02) * t.length * 0.5;
+
+            ctx.quadraticCurveTo(
+                this.x + Math.cos(t.angle) * t.length * 0.5,
+                this.y + 20 + wave * 0.3,
+                endX, endY
+            );
+            ctx.stroke();
+
+            // Tentacle tip
+            ctx.fillStyle = '#050505';
+            ctx.beginPath();
+            ctx.arc(endX, endY, 3, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        // Distorted body (back view - facing computer)
+        ctx.fillStyle = '#0a0a0a';
+        ctx.fillRect(this.x - 15, this.y, 30, 45);
+
+        // Head (slightly misshapen)
+        ctx.beginPath();
+        ctx.ellipse(this.x, this.y - 5, 12, 15, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Glitch effect on the figure
+        if (Math.random() < 0.05) {
+            ctx.fillStyle = 'rgba(255, 0, 0, 0.3)';
+            ctx.fillRect(this.x - 20 + Math.random() * 10, this.y + Math.random() * 40, 40, 3);
+        }
+
+        // Arms reaching to keyboard (animated typing)
+        const typeOffset = Math.sin(this.typingFrame) * 2;
+        ctx.strokeStyle = '#0a0a0a';
+        ctx.lineWidth = 5;
+        ctx.beginPath();
+        ctx.moveTo(this.x - 10, this.y + 25);
+        ctx.lineTo(this.x - 25, this.y + 45 + typeOffset);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(this.x + 10, this.y + 25);
+        ctx.lineTo(this.x + 25, this.y + 45 - typeOffset);
+        ctx.stroke();
+    }
+}
+
+// ============================================
+// Vent Peek Point Class
+// ============================================
+class VentPeekPoint {
+    constructor(data) {
+        this.id = data.id;
+        this.x = data.x;
+        this.y = data.y;
+        this.width = 40;
+        this.height = 30;
+        this.roomName = data.roomName;
+        this.npcs = data.npcs;
+        this.dialogue = data.dialogue;
+        this.isActive = false;
+        this.dialoguePhase = 0;
+        this.dialogueTimer = 0;
+    }
+
+    draw(ctx) {
+        // Vent grate appearance
+        ctx.fillStyle = '#2a2a2a';
+        ctx.fillRect(this.x, this.y, this.width, this.height);
+
+        // Grate lines
+        ctx.strokeStyle = '#1a1a1a';
+        ctx.lineWidth = 2;
+        for (let i = 0; i < 5; i++) {
+            ctx.beginPath();
+            ctx.moveTo(this.x + 5 + i * 8, this.y);
+            ctx.lineTo(this.x + 5 + i * 8, this.y + this.height);
+            ctx.stroke();
+        }
+
+        // Light coming through (indicating room below)
+        ctx.fillStyle = 'rgba(255, 200, 100, 0.2)';
+        ctx.fillRect(this.x + 2, this.y + 2, this.width - 4, this.height - 4);
+
+        // Interaction prompt if player is near
+        if (this.isActive) {
+            ctx.fillStyle = '#ffcc00';
+            ctx.font = 'bold 12px "Segoe UI", sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText("Press 'E' to peek", this.x + this.width / 2, this.y - 10);
+            ctx.textAlign = 'left';
+        }
+    }
+
+    isPlayerNear(player) {
+        const range = 30;
+        return player.x + player.width > this.x - range &&
+               player.x < this.x + this.width + range &&
+               player.y + player.height > this.y - range &&
+               player.y < this.y + this.height + range;
+    }
+
+    drawPeekView(ctx, dialoguePhase, dialogueTimer) {
+        // Dark overlay
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.9)';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Vent frame (looking through slats)
+        const viewX = 100;
+        const viewY = 80;
+        const viewW = 600;
+        const viewH = 350;
+
+        // Room background
+        ctx.fillStyle = '#1a1a1a';
+        ctx.fillRect(viewX, viewY, viewW, viewH);
+
+        // Room name
+        ctx.fillStyle = '#666666';
+        ctx.font = 'bold 16px "Segoe UI", sans-serif';
+        ctx.fillText(this.roomName, viewX + 20, viewY + 30);
+
+        // Floor
+        ctx.fillStyle = '#252525';
+        ctx.fillRect(viewX, viewY + viewH - 80, viewW, 80);
+
+        // Draw NPCs
+        for (const npc of this.npcs) {
+            this.drawOfficeNPC(ctx, viewX + npc.x * 3, viewY + npc.y * 2, npc.color);
+        }
+
+        // Vent slat overlay
+        ctx.strokeStyle = '#0a0a0a';
+        ctx.lineWidth = 8;
+        for (let i = 0; i < 8; i++) {
+            ctx.beginPath();
+            ctx.moveTo(viewX + i * 85, viewY);
+            ctx.lineTo(viewX + i * 85, viewY + viewH);
+            ctx.stroke();
+        }
+
+        // Current dialogue
+        if (dialoguePhase < this.dialogue.length) {
+            const msg = this.dialogue[dialoguePhase];
+            drawDialogueBox(msg.speaker, msg.text, dialogueTimer);
+        }
+
+        // Exit prompt
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+        ctx.font = '14px "Segoe UI", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText("Press 'E' or 'Escape' to stop peeking", canvas.width / 2, canvas.height - 30);
+        ctx.textAlign = 'left';
+    }
+
+    drawOfficeNPC(ctx, x, y, color) {
+        // Simple office worker sprite
+        // Body
+        ctx.fillStyle = color;
+        ctx.fillRect(x, y, 24, 40);
+
+        // Head
+        ctx.fillStyle = '#3a3a3a';
+        ctx.beginPath();
+        ctx.arc(x + 12, y - 8, 10, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Subtle face features
+        ctx.fillStyle = '#2a2a2a';
+        ctx.beginPath();
+        ctx.arc(x + 8, y - 10, 2, 0, Math.PI * 2);
+        ctx.arc(x + 16, y - 10, 2, 0, Math.PI * 2);
+        ctx.fill();
+    }
+}
+
+// ============================================
 // Level Definitions
 // ============================================
 const levels = [
@@ -1087,6 +1312,83 @@ const levels = [
             { x: 380, y: 200, w: 80, h: 25 },
             { x: 520, y: 300, w: 100, h: 25 },
         ]
+    },
+    // Level 10 - Dark Office / Vent Crawl
+    {
+        name: "The Office",
+        playerStart: { x: 50, y: 480 },
+        isOfficeLevel: true,
+        isDark: true,
+        noMusic: true,
+        hasVentSystem: true,
+        // Intro dialogue from player character
+        introDialogue: [
+            { text: "...", speaker: "???" },
+            { text: "What is this place?", speaker: "???" },
+            { text: "It's so dark...", speaker: "???" },
+            { text: "Wait- is that...?", speaker: "???" },
+            { text: "I should crawl through the vent.", speaker: "???" },
+            { text: "I don't want them to see me...", speaker: "???" }
+        ],
+        // Vent peek locations - rooms you can spy on
+        ventPeeks: [
+            {
+                id: 'room1',
+                x: 200, y: 100,
+                roomName: "Break Room",
+                npcs: [
+                    { x: 50, y: 80, color: '#555555' },
+                    { x: 120, y: 80, color: '#444444' }
+                ],
+                dialogue: [
+                    { speaker: "Worker 1", text: "Did you hear about the new guy?" },
+                    { speaker: "Worker 2", text: "Yeah... something's off about him." },
+                    { speaker: "Worker 1", text: "He never leaves his desk." },
+                    { speaker: "Worker 2", text: "I heard typing at 3 AM once..." }
+                ]
+            },
+            {
+                id: 'room2',
+                x: 450, y: 200,
+                roomName: "Copy Room",
+                npcs: [
+                    { x: 80, y: 80, color: '#4a4a4a' }
+                ],
+                dialogue: [
+                    { speaker: "Worker", text: "These reports don't make sense..." },
+                    { speaker: "Worker", text: "Why does management need all this data?" },
+                    { speaker: "Worker", text: "...I should stop asking questions." }
+                ]
+            },
+            {
+                id: 'room3',
+                x: 650, y: 150,
+                roomName: "Server Room",
+                npcs: [
+                    { x: 70, y: 70, color: '#3a3a3a' },
+                    { x: 130, y: 85, color: '#505050' }
+                ],
+                dialogue: [
+                    { speaker: "Tech 1", text: "The servers are running hot again." },
+                    { speaker: "Tech 2", text: "It's like something's using all the processing power." },
+                    { speaker: "Tech 1", text: "For what though?" },
+                    { speaker: "Tech 2", text: "I... I don't want to know." }
+                ]
+            }
+        ],
+        // Vent path platforms (inside the vent system)
+        ventPlatforms: [
+            { x: 0, y: 550, w: 800, h: 50, isVent: true },
+            { x: 0, y: 50, w: 800, h: 30, isVent: true }, // Ceiling
+            { x: 150, y: 300, w: 150, h: 20, isVent: true },
+            { x: 400, y: 400, w: 150, h: 20, isVent: true },
+            { x: 600, y: 250, w: 150, h: 20, isVent: true },
+        ],
+        // Regular platforms (initial office view before entering vent)
+        platforms: [
+            { x: 0, y: 550, w: 800, h: 50 }
+        ],
+        goal: { x: 750, y: 480 }
     }
 ];
 
@@ -1254,6 +1556,19 @@ const level9Choice3Responses = [
     { text: "Oh, he's a bot.", speaker: "Narrator" }
 ];
 
+// Level 10 - Office/Vent state
+let level10IntroTriggered = false;
+let level10IntroActive = false;
+let level10IntroPhase = 0;
+let level10IntroTimer = 0;
+let isInVent = false;
+let distortedFigure = null;
+let ventPeekPoints = [];
+let currentPeekPoint = null;
+let isPeeking = false;
+let peekDialoguePhase = 0;
+let peekDialogueTimer = 0;
+
 function loadLevel(levelIndex) {
     if (levelIndex >= levels.length) {
         // Game complete - restart from level 1
@@ -1330,6 +1645,32 @@ function loadLevel(levelIndex) {
         phoneRinging = true;
         phoneAnswered = false;
         phoneRingTimer = 0;
+    }
+
+    // Initialize Level 10 (Office level)
+    if (level.isOfficeLevel) {
+        // Create distorted figure
+        distortedFigure = new DistortedFigure(600, 400);
+
+        // Create vent peek points
+        ventPeekPoints = level.ventPeeks.map(vp => new VentPeekPoint(vp));
+
+        // Reset vent state
+        isInVent = false;
+        isPeeking = false;
+        currentPeekPoint = null;
+
+        // Trigger intro dialogue
+        if (!level10IntroTriggered) {
+            level10IntroTriggered = true;
+            level10IntroActive = true;
+            level10IntroPhase = 0;
+            level10IntroTimer = 0;
+        }
+    } else {
+        distortedFigure = null;
+        ventPeekPoints = [];
+        isInVent = false;
     }
 
     levelComplete = false;
@@ -1575,6 +1916,109 @@ function drawBackground() {
     }
 }
 
+function drawOfficeBackground() {
+    // Very dark office background
+    ctx.fillStyle = '#0a0a0f';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    if (!isInVent) {
+        // Initial office view - player sees the distorted figure
+        // Dim ambient lighting
+        const gradient = ctx.createRadialGradient(600, 350, 50, 600, 350, 300);
+        gradient.addColorStop(0, 'rgba(30, 25, 20, 0.3)');
+        gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Old computer monitor glow
+        ctx.fillStyle = 'rgba(100, 200, 100, 0.1)';
+        ctx.fillRect(550, 320, 100, 80);
+
+        // Monitor
+        ctx.fillStyle = '#1a1a1a';
+        ctx.fillRect(560, 330, 80, 60);
+        // Screen
+        ctx.fillStyle = '#0a2a0a';
+        ctx.fillRect(565, 335, 70, 50);
+        // Screen text (green terminal style)
+        ctx.fillStyle = '#00ff00';
+        ctx.font = '8px monospace';
+        for (let i = 0; i < 4; i++) {
+            ctx.fillText('> ........', 570, 345 + i * 10);
+        }
+
+        // Desk
+        ctx.fillStyle = '#2a2015';
+        ctx.fillRect(500, 400, 200, 15);
+
+        // Landline phone on desk
+        ctx.fillStyle = '#f5f5dc';
+        ctx.fillRect(520, 385, 30, 15);
+        // Phone receiver
+        ctx.fillStyle = '#f0f0d0';
+        ctx.beginPath();
+        ctx.ellipse(535, 380, 12, 5, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Draw the distorted figure
+        if (distortedFigure) {
+            distortedFigure.update();
+            distortedFigure.draw(ctx);
+        }
+
+        // Vent entrance hint (on the left wall)
+        ctx.fillStyle = '#1a1a1a';
+        ctx.fillRect(20, 420, 60, 40);
+        ctx.strokeStyle = '#0a0a0a';
+        ctx.lineWidth = 2;
+        for (let i = 0; i < 6; i++) {
+            ctx.beginPath();
+            ctx.moveTo(25 + i * 10, 420);
+            ctx.lineTo(25 + i * 10, 460);
+            ctx.stroke();
+        }
+
+        // "Press E to enter vent" prompt if near
+        if (player.x < 100 && player.y > 400) {
+            ctx.fillStyle = '#ffcc00';
+            ctx.font = 'bold 14px "Segoe UI", sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText("Press 'E' to enter vent", 50, 410);
+            ctx.textAlign = 'left';
+        }
+    } else {
+        // Inside the vent system - darker, claustrophobic
+        ctx.fillStyle = '#0f0f0f';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Vent walls texture
+        ctx.strokeStyle = '#1a1a1a';
+        ctx.lineWidth = 3;
+        for (let i = 0; i < 20; i++) {
+            ctx.beginPath();
+            ctx.moveTo(i * 45, 0);
+            ctx.lineTo(i * 45, canvas.height);
+            ctx.stroke();
+        }
+
+        // Draw vent peek points
+        for (const vp of ventPeekPoints) {
+            vp.isActive = vp.isPlayerNear(player);
+            vp.draw(ctx);
+        }
+    }
+
+    // Dark vignette overlay
+    const vignette = ctx.createRadialGradient(
+        canvas.width / 2, canvas.height / 2, 100,
+        canvas.width / 2, canvas.height / 2, 500
+    );
+    vignette.addColorStop(0, 'rgba(0, 0, 0, 0)');
+    vignette.addColorStop(1, 'rgba(0, 0, 0, 0.7)');
+    ctx.fillStyle = vignette;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+}
+
 // ============================================
 // Game Loop
 // ============================================
@@ -1646,8 +2090,23 @@ function gameLoop() {
         level9ChoiceResponseTimer++;
     }
 
-    // Clear and draw background
-    drawBackground();
+    // Handle Level 10 intro dialogue
+    if (level10IntroActive) {
+        level10IntroTimer++;
+    }
+
+    // Handle Level 10 peek dialogue
+    if (isPeeking && currentPeekPoint) {
+        peekDialogueTimer++;
+    }
+
+    // Clear and draw background (or office for level 10)
+    const level = levels[currentLevel];
+    if (level && level.isOfficeLevel) {
+        drawOfficeBackground();
+    } else {
+        drawBackground();
+    }
 
     // Update and draw platforms
     for (const platform of platforms) {
@@ -1695,7 +2154,8 @@ function gameLoop() {
         // Update and draw player (freeze during narrator dialogue)
         const isInDialogue = narratorActive || dialogueChoiceActive || choiceMessagePhase > 0 ||
             level8NarratorActive || level9NarratorActive || level9PlayerDialogueActive ||
-            level9SecondCallActive || level9ChoiceActive || level9ChoiceResponsePhase > 0;
+            level9SecondCallActive || level9ChoiceActive || level9ChoiceResponsePhase > 0 ||
+            level10IntroActive || isPeeking;
         if (!isInDialogue) {
             player.update(platforms);
 
@@ -2462,6 +2922,44 @@ function drawPhoneInteraction() {
             }
         }
     }
+
+    // Draw Level 10 intro dialogue
+    const level = levels[currentLevel];
+    if (level && level.isOfficeLevel && level10IntroActive) {
+        const introMessages = level.introDialogue;
+        if (level10IntroPhase < introMessages.length) {
+            const message = introMessages[level10IntroPhase];
+            const messageDuration = 100 + message.text.length * 2;
+
+            if (level10IntroTimer > messageDuration + 20) {
+                level10IntroPhase++;
+                level10IntroTimer = 0;
+                if (level10IntroPhase >= introMessages.length) {
+                    level10IntroActive = false;
+                }
+            } else {
+                // Player is talking during intro
+                player.isTalking = true;
+                drawDialogueBox(message.speaker, message.text, level10IntroTimer);
+            }
+        }
+    }
+
+    // Draw Level 10 peek view (overlays everything)
+    if (isPeeking && currentPeekPoint) {
+        currentPeekPoint.drawPeekView(ctx, peekDialoguePhase, peekDialogueTimer);
+
+        // Advance peek dialogue
+        if (peekDialoguePhase < currentPeekPoint.dialogue.length) {
+            const msg = currentPeekPoint.dialogue[peekDialoguePhase];
+            const msgDuration = 100 + msg.text.length * 2;
+
+            if (peekDialogueTimer > msgDuration + 20) {
+                peekDialoguePhase++;
+                peekDialogueTimer = 0;
+            }
+        }
+    }
 }
 
 // Draw Level 9 three-choice dialogue
@@ -2736,6 +3234,39 @@ document.addEventListener('keydown', (e) => {
                     }, 500);
                 }
             }
+            // Level 10 - Vent interactions
+            else if (gameState === 'playing' && levels[currentLevel] && levels[currentLevel].isOfficeLevel) {
+                // Exit peek view
+                if (isPeeking) {
+                    isPeeking = false;
+                    currentPeekPoint = null;
+                    peekDialoguePhase = 0;
+                    peekDialogueTimer = 0;
+                }
+                // Enter vent (from initial office view)
+                else if (!isInVent && !level10IntroActive && player.x < 100 && player.y > 400) {
+                    isInVent = true;
+                    // Load vent platforms
+                    const level = levels[currentLevel];
+                    platforms = level.ventPlatforms.map(p =>
+                        new Platform(p.x, p.y, p.w, p.h, '#2a2a2a', false)
+                    );
+                    player.x = 50;
+                    player.y = 480;
+                }
+                // Peek through vent grate
+                else if (isInVent) {
+                    for (const vp of ventPeekPoints) {
+                        if (vp.isPlayerNear(player)) {
+                            isPeeking = true;
+                            currentPeekPoint = vp;
+                            peekDialoguePhase = 0;
+                            peekDialogueTimer = 0;
+                            break;
+                        }
+                    }
+                }
+            }
             break;
         case 'r':
             // Restart current level
@@ -2748,15 +3279,23 @@ document.addEventListener('keydown', (e) => {
             if (gameState === 'settings') {
                 gameState = 'menu';
             } else if (gameState === 'playing') {
-                gameState = 'menu';
-                sound.stopMusic();
-                // Start menu music
-                if (soundInitialized && !sound.muted) {
-                    sound.startMenuMusic();
+                // First check if we're peeking - exit peek view
+                if (isPeeking) {
+                    isPeeking = false;
+                    currentPeekPoint = null;
+                    peekDialoguePhase = 0;
+                    peekDialogueTimer = 0;
+                } else {
+                    gameState = 'menu';
+                    sound.stopMusic();
+                    // Start menu music
+                    if (soundInitialized && !sound.muted) {
+                        sound.startMenuMusic();
+                    }
+                    // Reset game state
+                    cutsceneActive = false;
+                    levelComplete = false;
                 }
-                // Reset game state
-                cutsceneActive = false;
-                levelComplete = false;
             }
             break;
         case 'enter':
@@ -2820,6 +3359,26 @@ document.addEventListener('keydown', (e) => {
                     if (level9ChoiceResponsePhase > responses.length) {
                         level9ChoiceResponsePhase = 0;
                         level9ChoiceActive = false;
+                    }
+                } else if (level10IntroActive) {
+                    // Skip Level 10 intro dialogue
+                    const level = levels[currentLevel];
+                    if (level && level.introDialogue) {
+                        level10IntroPhase++;
+                        level10IntroTimer = 0;
+                        if (level10IntroPhase >= level.introDialogue.length) {
+                            level10IntroActive = false;
+                        }
+                    }
+                } else if (isPeeking && currentPeekPoint) {
+                    // Skip peek dialogue or exit
+                    if (peekDialoguePhase < currentPeekPoint.dialogue.length) {
+                        peekDialoguePhase++;
+                        peekDialogueTimer = 0;
+                    } else {
+                        // All dialogue done, exit peek view
+                        isPeeking = false;
+                        currentPeekPoint = null;
                     }
                 }
             }
