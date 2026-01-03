@@ -1,10 +1,10 @@
 // ============================================
-// Mia's Adventure - Platform Game Foundation
+// Ping's Adventure - Platform Game Foundation
 // ============================================
 
 // Build Info (for debugging - set DEBUG_MODE to false for release)
 const BUILD_VERSION = "0.1.0";
-const BUILD_NUMBER = 21;
+const BUILD_NUMBER = 22;
 const BUILD_DATE = "2026-01-03";
 const DEBUG_MODE = true;
 
@@ -429,7 +429,7 @@ class SoundManager {
             gain.gain.exponentialRampToValueAtTime(0.01, now + 0.04);
             osc.start(now);
             osc.stop(now + 0.04);
-        } else if (speaker === 'Mia') {
+        } else if (speaker === 'Ping') {
             // Player character when named - soft, warm
             osc.type = 'sine';
             osc.frequency.value = 500 + Math.random() * 150;
@@ -452,7 +452,7 @@ class SoundManager {
 const sound = new SoundManager();
 
 // ============================================
-// Player Class (Mia)
+// Player Class (Ping)
 // ============================================
 class Player {
     constructor(x, y) {
@@ -1880,14 +1880,14 @@ function drawMainMenu() {
     ctx.fillStyle = '#e94560';
     ctx.font = 'bold 56px "Segoe UI", sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText("Mia's Adventure", canvas.width / 2, 150);
+    ctx.fillText("Ping's Adventure", canvas.width / 2, 150);
 
     // Subtitle
     ctx.fillStyle = '#a0a0a0';
     ctx.font = '20px "Segoe UI", sans-serif';
     ctx.fillText('A Platformer Game', canvas.width / 2, 190);
 
-    // Draw Mia character as decoration
+    // Draw Ping character as decoration
     ctx.fillStyle = '#e94560';
     ctx.fillRect(canvas.width / 2 - 25, 220, 50, 70);
     ctx.fillStyle = '#ffffff';
@@ -2303,7 +2303,7 @@ function drawCutscene() {
             sound.playWhisper();
         }
 
-        // Draw large Mia face in center (creepy close-up)
+        // Draw large Ping face in center (creepy close-up)
         const faceX = canvas.width / 2;
         const faceY = canvas.height / 2 - 50;
         const faceScale = 8;
@@ -2377,7 +2377,7 @@ function drawCutscene() {
 
 // Get reference to the main title element
 const mainTitle = document.querySelector('h1');
-const originalTitle = "Mia's Adventure";
+const originalTitle = "Ping's Adventure";
 const glitchedTitles = ["M̷i̸a̵'̶s̷ ̴A̶d̸v̷e̸n̴t̷u̸r̵e̶", "MIA'S ADVENTURE", "h̷e̸l̵p̶ ̷m̸e̵", "R̶U̷N̸", "IT SEES YOU", "D̷O̸N̵'̶T̷ ̸L̵O̸O̶K̷"];
 
 function drawUI() {
@@ -2771,7 +2771,8 @@ function drawPhoneInteraction() {
                 selectedChoice = 0;
             }
         } else {
-            drawDialogueBox('???', message.text, narratorTimer);
+            // Level 1 first phone call: ??? uses Narrator voice (Ping before we know the name)
+            drawDialogueBox('???', message.text, narratorTimer, 'Narrator');
         }
     }
 
@@ -3071,7 +3072,7 @@ function drawLevel9Choices() {
     ctx.textAlign = 'left';
 }
 
-function drawDialogueBox(speaker, text, timeInMessage) {
+function drawDialogueBox(speaker, text, timeInMessage, voiceOverride = null) {
     const boxWidth = 600;
     const maxTextWidth = boxWidth - 40; // Padding on both sides
     const lineHeight = 24;
@@ -3126,9 +3127,9 @@ function drawDialogueBox(speaker, text, timeInMessage) {
     const charsToShow = Math.floor(timeInMessage / 2); // Slightly faster typing
     const displayText = text.substring(0, charsToShow);
 
-    // Play sound for each new character (different voice per speaker)
+    // Play sound for each new character (different voice per speaker, with optional override)
     if (charsToShow > 0 && charsToShow <= text.length && timeInMessage % 3 === 1) {
-        sound.playNarratorVoice(speaker);
+        sound.playNarratorVoice(voiceOverride || speaker);
     }
 
     // Draw wrapped text with typewriter effect
@@ -3549,5 +3550,5 @@ document.addEventListener('keyup', (e) => {
 // ============================================
 // Start the Game
 // ============================================
-console.log('Mia\'s Adventure - Game Started!');
+console.log('Ping\'s Adventure - Game Started!');
 gameLoop();
