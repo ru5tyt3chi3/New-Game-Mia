@@ -4,7 +4,7 @@
 
 // Build Info (for debugging - set DEBUG_MODE to false for release)
 const BUILD_VERSION = "0.1.0";
-const BUILD_NUMBER = 17;
+const BUILD_NUMBER = 18;
 const BUILD_DATE = "2026-01-02";
 const DEBUG_MODE = true;
 
@@ -1180,6 +1180,61 @@ let level9MessagePhase = 0;
 let level9MessageTimer = 0;
 let level9NarratorActive = false;
 
+// Level 9 player character dialogue (after narrator leaves)
+let level9PlayerDialogueActive = false;
+let level9PlayerPhase = 0;
+let level9PlayerTimer = 0;
+const level9PlayerMessages = [
+    { text: "*Sigh-*", speaker: "???" },
+    { text: "He's gone...", speaker: "???" },
+    { text: "Phew!", speaker: "???" },
+    { text: "Okay...", speaker: "???" },
+    { text: "...", speaker: "???" },
+    { text: "This place isn't-", speaker: "???" }
+];
+
+// Level 9 second phone call (narrator returns)
+let level9SecondCallTriggered = false;
+let level9SecondCallActive = false;
+let level9SecondPhase = 0;
+let level9SecondTimer = 0;
+const level9NarratorReturnMessages = [
+    { text: "Okayyy!", speaker: "Narrator" },
+    { text: "I'm back!", speaker: "Narrator" },
+    { text: "Soooo yeah!", speaker: "Narrator" },
+    { text: "Easy as pie!", speaker: "Narrator" },
+    { text: "...", speaker: "Narrator" },
+    { text: "Are you okay?", speaker: "Narrator" }
+];
+
+// Level 9 dialogue choices (3 options)
+let level9ChoiceActive = false;
+let level9SelectedChoice = 0;
+let level9ChoiceResponsePhase = 0;
+let level9ChoiceResponseTimer = 0;
+
+const level9Choices = [
+    { text: "...", key: "1" },
+    { text: "The little red guy just talked to me...", key: "2" },
+    { text: "Who's that?", key: "3" }
+];
+
+const level9Choice1Responses = [
+    { text: "...", speaker: "Narrator" },
+    { text: "... I see...", speaker: "Narrator" }
+];
+
+const level9Choice2Responses = [
+    { text: "Oh-", speaker: "Narrator" },
+    { text: "Must be another bug...", speaker: "Narrator" }
+];
+
+const level9Choice3Responses = [
+    { text: "Who?", speaker: "Narrator" },
+    { text: "The red guy?", speaker: "Narrator" },
+    { text: "Oh, he's a bot.", speaker: "Narrator" }
+];
+
 function loadLevel(levelIndex) {
     if (levelIndex >= levels.length) {
         // Game complete - restart from level 1
@@ -1557,6 +1612,21 @@ function gameLoop() {
         level9MessageTimer++;
     }
 
+    // Handle Level 9 player character dialogue
+    if (level9PlayerDialogueActive) {
+        level9PlayerTimer++;
+    }
+
+    // Handle Level 9 second call dialogue
+    if (level9SecondCallActive) {
+        level9SecondTimer++;
+    }
+
+    // Handle Level 9 choice response dialogue
+    if (level9ChoiceResponsePhase > 0) {
+        level9ChoiceResponseTimer++;
+    }
+
     // Clear and draw background
     drawBackground();
 
@@ -1604,7 +1674,9 @@ function gameLoop() {
         }
     } else {
         // Update and draw player (freeze during narrator dialogue)
-        const isInDialogue = narratorActive || dialogueChoiceActive || choiceMessagePhase > 0 || level8NarratorActive || level9NarratorActive;
+        const isInDialogue = narratorActive || dialogueChoiceActive || choiceMessagePhase > 0 ||
+            level8NarratorActive || level9NarratorActive || level9PlayerDialogueActive ||
+            level9SecondCallActive || level9ChoiceActive || level9ChoiceResponsePhase > 0;
         if (!isInDialogue) {
             player.update(platforms);
 
@@ -2281,11 +2353,152 @@ function drawPhoneInteraction() {
             level9MessageTimer = 0;
             if (level9MessagePhase >= level9NarratorMessages.length) {
                 level9NarratorActive = false;
+                // Start player character dialogue
+                level9PlayerDialogueActive = true;
+                level9PlayerPhase = 0;
+                level9PlayerTimer = 0;
             }
         } else {
             drawDialogueBox(message.speaker, message.text, level9MessageTimer);
         }
     }
+
+    // Draw Level 9 player character dialogue (after narrator leaves)
+    if (level9PlayerDialogueActive && level9PlayerPhase < level9PlayerMessages.length) {
+        const message = level9PlayerMessages[level9PlayerPhase];
+        const messageDuration = 100 + message.text.length * 2;
+
+        // Check if we should move to next message
+        if (level9PlayerTimer > messageDuration + 20) {
+            level9PlayerPhase++;
+            level9PlayerTimer = 0;
+            if (level9PlayerPhase >= level9PlayerMessages.length) {
+                level9PlayerDialogueActive = false;
+                // Trigger second phone call (phone rings, interrupting player)
+                level9SecondCallTriggered = true;
+                phoneRinging = true;
+                phoneAnswered = false;
+                phoneRingTimer = 0;
+            }
+        } else {
+            drawDialogueBox(message.speaker, message.text, level9PlayerTimer);
+
+            // On the last message, show phone ringing indicator early
+            if (level9PlayerPhase === level9PlayerMessages.length - 1 && level9PlayerTimer > 60) {
+                // Phone starts ringing during "This place isn't-"
+                if (!level9SecondCallTriggered) {
+                    level9SecondCallTriggered = true;
+                    phoneRinging = true;
+                    phoneAnswered = false;
+                    phoneRingTimer = 0;
+                }
+            }
+        }
+    }
+
+    // Draw player's reaction to phone ring ("Oh crap-!")
+    if (level9SecondCallTriggered && phoneRinging && !phoneAnswered && level9PlayerDialogueActive === false && !level9SecondCallActive) {
+        // Show the player's startled reaction
+        drawDialogueBox("???", "Oh crap-!", phoneRingTimer);
+    }
+
+    // Draw Level 9 narrator return messages (second call)
+    if (level9SecondCallActive && level9SecondPhase < level9NarratorReturnMessages.length) {
+        const message = level9NarratorReturnMessages[level9SecondPhase];
+        const messageDuration = 100 + message.text.length * 2;
+
+        if (level9SecondTimer > messageDuration + 20) {
+            level9SecondPhase++;
+            level9SecondTimer = 0;
+            if (level9SecondPhase >= level9NarratorReturnMessages.length) {
+                level9SecondCallActive = false;
+                // Show the 3-choice dialogue
+                level9ChoiceActive = true;
+                level9SelectedChoice = 0;
+            }
+        } else {
+            drawDialogueBox(message.speaker, message.text, level9SecondTimer);
+        }
+    }
+
+    // Draw Level 9 choice selection (3 options)
+    if (level9ChoiceActive && level9ChoiceResponsePhase === 0) {
+        drawLevel9Choices();
+    }
+
+    // Draw Level 9 choice responses
+    if (level9ChoiceResponsePhase > 0) {
+        const responses = level9SelectedChoice === 0 ? level9Choice1Responses :
+                         level9SelectedChoice === 1 ? level9Choice2Responses :
+                         level9Choice3Responses;
+
+        if (level9ChoiceResponsePhase <= responses.length) {
+            const response = responses[level9ChoiceResponsePhase - 1];
+            const messageDuration = 100 + response.text.length * 2;
+
+            if (level9ChoiceResponseTimer > messageDuration + 20) {
+                level9ChoiceResponsePhase++;
+                level9ChoiceResponseTimer = 0;
+                if (level9ChoiceResponsePhase > responses.length) {
+                    level9ChoiceResponsePhase = 0;
+                    level9ChoiceActive = false;
+                }
+            } else {
+                drawDialogueBox(response.speaker, response.text, level9ChoiceResponseTimer);
+            }
+        }
+    }
+}
+
+// Draw Level 9 three-choice dialogue
+function drawLevel9Choices() {
+    const boxWidth = 600;
+    const boxHeight = 140;
+    const boxX = (canvas.width - boxWidth) / 2;
+    const boxY = canvas.height - boxHeight - 20;
+
+    // Semi-transparent background
+    ctx.fillStyle = 'rgba(20, 20, 40, 0.95)';
+    ctx.beginPath();
+    ctx.roundRect(boxX, boxY, boxWidth, boxHeight, 8);
+    ctx.fill();
+
+    // Border
+    ctx.strokeStyle = '#e94560';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.roundRect(boxX, boxY, boxWidth, boxHeight, 8);
+    ctx.stroke();
+
+    // Title
+    ctx.fillStyle = '#888888';
+    ctx.font = 'bold 14px "Segoe UI", sans-serif';
+    ctx.fillText('Choose your response:', boxX + 20, boxY + 25);
+
+    // Draw choices
+    for (let i = 0; i < level9Choices.length; i++) {
+        const choice = level9Choices[i];
+        const choiceY = boxY + 50 + (i * 28);
+        const isSelected = i === level9SelectedChoice;
+
+        // Selection indicator
+        if (isSelected) {
+            ctx.fillStyle = 'rgba(233, 69, 96, 0.3)';
+            ctx.fillRect(boxX + 15, choiceY - 18, boxWidth - 30, 26);
+        }
+
+        // Choice text
+        ctx.fillStyle = isSelected ? '#e94560' : '#ffffff';
+        ctx.font = isSelected ? 'bold 16px "Segoe UI", sans-serif' : '16px "Segoe UI", sans-serif';
+        ctx.fillText(`${choice.key}. ${choice.text}`, boxX + 25, choiceY);
+    }
+
+    // Instructions
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+    ctx.font = '12px "Segoe UI", sans-serif';
+    ctx.textAlign = 'right';
+    ctx.fillText('Use 1/2/3 or Arrow keys, Enter to select', boxX + boxWidth - 15, boxY + boxHeight - 8);
+    ctx.textAlign = 'left';
 }
 
 function drawDialogueBox(speaker, text, timeInMessage) {
@@ -2474,8 +2687,13 @@ document.addEventListener('keydown', (e) => {
                     level8NarratorActive = true;
                     level8MessagePhase = 0;
                     level8MessageTimer = 0;
+                } else if (currentLevel === 8 && level9SecondCallTriggered && !level9NarratorActive) {
+                    // Level 9 second phone call (narrator returns)
+                    level9SecondCallActive = true;
+                    level9SecondPhase = 0;
+                    level9SecondTimer = 0;
                 } else if (currentLevel === 8 && level9IntroTriggered) {
-                    // Level 9 phone call
+                    // Level 9 first phone call
                     level9NarratorActive = true;
                     level9MessagePhase = 0;
                     level9MessageTimer = 0;
@@ -2558,6 +2776,36 @@ document.addEventListener('keydown', (e) => {
                     level9MessageTimer = 0;
                     if (level9MessagePhase >= level9NarratorMessages.length) {
                         level9NarratorActive = false;
+                        // Start player dialogue
+                        level9PlayerDialogueActive = true;
+                        level9PlayerPhase = 0;
+                        level9PlayerTimer = 0;
+                    }
+                } else if (level9PlayerDialogueActive) {
+                    level9PlayerPhase++;
+                    level9PlayerTimer = 0;
+                    if (level9PlayerPhase >= level9PlayerMessages.length) {
+                        level9PlayerDialogueActive = false;
+                        // Phone should already be ringing
+                    }
+                } else if (level9SecondCallActive) {
+                    level9SecondPhase++;
+                    level9SecondTimer = 0;
+                    if (level9SecondPhase >= level9NarratorReturnMessages.length) {
+                        level9SecondCallActive = false;
+                        level9ChoiceActive = true;
+                        level9SelectedChoice = 0;
+                    }
+                } else if (level9ChoiceResponsePhase > 0) {
+                    // Skip Level 9 choice response messages
+                    const responses = level9SelectedChoice === 0 ? level9Choice1Responses :
+                                     level9SelectedChoice === 1 ? level9Choice2Responses :
+                                     level9Choice3Responses;
+                    level9ChoiceResponsePhase++;
+                    level9ChoiceResponseTimer = 0;
+                    if (level9ChoiceResponsePhase > responses.length) {
+                        level9ChoiceResponsePhase = 0;
+                        level9ChoiceActive = false;
                     }
                 }
             }
@@ -2567,11 +2815,17 @@ document.addEventListener('keydown', (e) => {
             if (dialogueChoiceActive && choiceMessagePhase === 0) {
                 selectedChoice = 0;
                 e.preventDefault();
+            } else if (level9ChoiceActive && level9ChoiceResponsePhase === 0) {
+                level9SelectedChoice = Math.max(0, level9SelectedChoice - 1);
+                e.preventDefault();
             }
             break;
         case 'arrowdown':
             if (dialogueChoiceActive && choiceMessagePhase === 0) {
                 selectedChoice = 1;
+                e.preventDefault();
+            } else if (level9ChoiceActive && level9ChoiceResponsePhase === 0) {
+                level9SelectedChoice = Math.min(2, level9SelectedChoice + 1);
                 e.preventDefault();
             }
             break;
@@ -2581,6 +2835,10 @@ document.addEventListener('keydown', (e) => {
                 choiceMessagePhase = 1;
                 choiceMessageTimer = 0;
                 e.preventDefault();
+            } else if (level9ChoiceActive && level9ChoiceResponsePhase === 0) {
+                level9ChoiceResponsePhase = 1;
+                level9ChoiceResponseTimer = 0;
+                e.preventDefault();
             }
             break;
         // Number keys - dialogue choices take priority, then level select
@@ -2589,7 +2847,11 @@ document.addEventListener('keydown', (e) => {
                 selectedChoice = 0;
                 choiceMessagePhase = 1;
                 choiceMessageTimer = 0;
-            } else if (gameState === 'playing' && !dialogueChoiceActive) {
+            } else if (level9ChoiceActive && level9ChoiceResponsePhase === 0) {
+                level9SelectedChoice = 0;
+                level9ChoiceResponsePhase = 1;
+                level9ChoiceResponseTimer = 0;
+            } else if (gameState === 'playing' && !dialogueChoiceActive && !level9ChoiceActive) {
                 currentLevel = 0;
                 loadLevel(currentLevel);
             }
@@ -2599,19 +2861,32 @@ document.addEventListener('keydown', (e) => {
                 selectedChoice = 1;
                 choiceMessagePhase = 1;
                 choiceMessageTimer = 0;
-            } else if (gameState === 'playing' && !dialogueChoiceActive) {
+            } else if (level9ChoiceActive && level9ChoiceResponsePhase === 0) {
+                level9SelectedChoice = 1;
+                level9ChoiceResponsePhase = 1;
+                level9ChoiceResponseTimer = 0;
+            } else if (gameState === 'playing' && !dialogueChoiceActive && !level9ChoiceActive) {
                 currentLevel = 1;
                 loadLevel(currentLevel);
             }
             break;
         case '3':
+            if (level9ChoiceActive && level9ChoiceResponsePhase === 0) {
+                level9SelectedChoice = 2;
+                level9ChoiceResponsePhase = 1;
+                level9ChoiceResponseTimer = 0;
+            } else if (gameState === 'playing' && !dialogueChoiceActive && !level9ChoiceActive) {
+                currentLevel = 2;
+                loadLevel(currentLevel);
+            }
+            break;
         case '4':
         case '5':
         case '6':
         case '7':
         case '8':
         case '9':
-            if (gameState === 'playing' && !dialogueChoiceActive) {
+            if (gameState === 'playing' && !dialogueChoiceActive && !level9ChoiceActive) {
                 const levelNum = parseInt(e.key) - 1;
                 if (levelNum < levels.length) {
                     currentLevel = levelNum;
