@@ -4,7 +4,7 @@
 
 // Build Info (for debugging - set DEBUG_MODE to false for release)
 const BUILD_VERSION = "0.1.0";
-const BUILD_NUMBER = 18;
+const BUILD_NUMBER = 19;
 const BUILD_DATE = "2026-01-02";
 const DEBUG_MODE = true;
 
@@ -419,6 +419,8 @@ class Player {
         this.isGrounded = false;
         this.color = '#e94560';
         this.eyeColor = '#ffffff';
+        this.isTalking = false;
+        this.talkFrame = 0;
     }
 
     update(platforms) {
@@ -527,12 +529,29 @@ class Player {
         ctx.arc(this.x + eyeOffsetX + (faceDir * 1), this.y + 15, 2, 0, Math.PI * 2);
         ctx.fill();
 
-        // Smile
-        ctx.strokeStyle = '#1a1a2e';
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.arc(this.x + 16, this.y + 28, 6, 0.1 * Math.PI, 0.9 * Math.PI);
-        ctx.stroke();
+        // Mouth - animated when talking
+        if (this.isTalking) {
+            this.talkFrame += 0.3;
+            const mouthOpen = Math.abs(Math.sin(this.talkFrame)) * 5 + 2;
+
+            // Open mouth (dark inside)
+            ctx.fillStyle = '#1a1a2e';
+            ctx.beginPath();
+            ctx.ellipse(this.x + 16, this.y + 28, 5, mouthOpen, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Mouth outline
+            ctx.strokeStyle = '#1a1a2e';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+        } else {
+            // Normal smile
+            ctx.strokeStyle = '#1a1a2e';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(this.x + 16, this.y + 28, 6, 0.1 * Math.PI, 0.9 * Math.PI);
+            ctx.stroke();
+        }
     }
 }
 
@@ -1691,6 +1710,11 @@ function gameLoop() {
                 player.velX = 0;
             }
         }
+
+        // Set talking state for player character dialogue
+        player.isTalking = level9PlayerDialogueActive ||
+            (level9SecondCallTriggered && phoneRinging && !phoneAnswered && !level9SecondCallActive);
+
         player.draw();
 
         // Check key collision
@@ -2213,36 +2237,23 @@ function drawPhoneInteraction() {
         ctx.textAlign = 'left';
     }
 
-    // Draw narrator dialogue box
+    // Draw narrator dialogue box (first phone call)
     if (narratorActive && narratorPhase < narratorMessages.length) {
-        // Calculate which message to show and how much of it
-        let totalTime = 0;
-        let currentMessage = null;
-        let messageStartTime = 0;
+        const message = narratorMessages[narratorPhase];
+        const messageDuration = message.duration || (100 + message.text.length * 2);
 
-        for (let i = 0; i <= narratorPhase && i < narratorMessages.length; i++) {
-            if (i === narratorPhase) {
-                currentMessage = narratorMessages[i];
-                messageStartTime = totalTime;
-                break;
+        // Check if we should move to next message
+        if (narratorTimer > messageDuration + 20) {
+            narratorPhase++;
+            narratorTimer = 0;
+            if (narratorPhase >= narratorMessages.length) {
+                narratorActive = false;
+                // Show dialogue choices after initial messages
+                dialogueChoiceActive = true;
+                selectedChoice = 0;
             }
-            totalTime += narratorMessages[i].duration + 30; // 30 frame gap between messages
-        }
-
-        if (currentMessage) {
-            const timeInMessage = narratorTimer - messageStartTime;
-
-            // Check if we should move to next message
-            if (timeInMessage > currentMessage.duration + 30) {
-                narratorPhase++;
-                if (narratorPhase >= narratorMessages.length) {
-                    narratorActive = false;
-                    // Show dialogue choices after initial messages
-                    dialogueChoiceActive = true;
-                }
-            } else if (timeInMessage > 0 && timeInMessage <= currentMessage.duration) {
-                drawDialogueBox('???', currentMessage.text, timeInMessage);
-            }
+        } else {
+            drawDialogueBox('???', message.text, narratorTimer);
         }
     }
 
@@ -2366,7 +2377,8 @@ function drawPhoneInteraction() {
     // Draw Level 9 player character dialogue (after narrator leaves)
     if (level9PlayerDialogueActive && level9PlayerPhase < level9PlayerMessages.length) {
         const message = level9PlayerMessages[level9PlayerPhase];
-        const messageDuration = 100 + message.text.length * 2;
+        const isLastMessage = level9PlayerPhase === level9PlayerMessages.length - 1;
+        const messageDuration = isLastMessage ? 80 : (100 + message.text.length * 2); // Shorter last message (gets interrupted)
 
         // Check if we should move to next message
         if (level9PlayerTimer > messageDuration + 20) {
@@ -2374,18 +2386,7 @@ function drawPhoneInteraction() {
             level9PlayerTimer = 0;
             if (level9PlayerPhase >= level9PlayerMessages.length) {
                 level9PlayerDialogueActive = false;
-                // Trigger second phone call (phone rings, interrupting player)
-                level9SecondCallTriggered = true;
-                phoneRinging = true;
-                phoneAnswered = false;
-                phoneRingTimer = 0;
-            }
-        } else {
-            drawDialogueBox(message.speaker, message.text, level9PlayerTimer);
-
-            // On the last message, show phone ringing indicator early
-            if (level9PlayerPhase === level9PlayerMessages.length - 1 && level9PlayerTimer > 60) {
-                // Phone starts ringing during "This place isn't-"
+                // Phone should already be ringing from interruption
                 if (!level9SecondCallTriggered) {
                     level9SecondCallTriggered = true;
                     phoneRinging = true;
@@ -2393,12 +2394,25 @@ function drawPhoneInteraction() {
                     phoneRingTimer = 0;
                 }
             }
+        } else {
+            drawDialogueBox(message.speaker, message.text, level9PlayerTimer);
+
+            // On the last message "This place isn't-", phone rings to interrupt
+            if (isLastMessage && level9PlayerTimer > 50 && !level9SecondCallTriggered) {
+                level9SecondCallTriggered = true;
+                phoneRinging = true;
+                phoneAnswered = false;
+                phoneRingTimer = 0;
+                // Immediately end player dialogue and show reaction
+                level9PlayerDialogueActive = false;
+                level9PlayerPhase = level9PlayerMessages.length;
+            }
         }
     }
 
     // Draw player's reaction to phone ring ("Oh crap-!")
-    if (level9SecondCallTriggered && phoneRinging && !phoneAnswered && level9PlayerDialogueActive === false && !level9SecondCallActive) {
-        // Show the player's startled reaction
+    if (level9SecondCallTriggered && phoneRinging && !phoneAnswered && !level9SecondCallActive) {
+        // Show the player's startled reaction while phone rings
         drawDialogueBox("???", "Oh crap-!", phoneRingTimer);
     }
 
