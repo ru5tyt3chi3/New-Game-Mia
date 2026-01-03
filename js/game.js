@@ -4,7 +4,7 @@
 
 // Build Info (for debugging - set DEBUG_MODE to false for release)
 const BUILD_VERSION = "0.1.0";
-const BUILD_NUMBER = 23;
+const BUILD_NUMBER = 24;
 const BUILD_DATE = "2026-01-03";
 const DEBUG_MODE = true;
 
@@ -2258,8 +2258,8 @@ function gameLoop() {
         }
 
         // Level 9 second call dialogue (check if current message is ???)
-        if (level9SecondCallActive && level9SecondPhase < level9SecondCallMessages.length) {
-            if (level9SecondCallMessages[level9SecondPhase].speaker === '???') {
+        if (level9SecondCallActive && level9SecondPhase < level9NarratorReturnMessages.length) {
+            if (level9NarratorReturnMessages[level9SecondPhase].speaker === '???') {
                 pingIsTalking = true;
             }
         }
