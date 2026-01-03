@@ -381,25 +381,71 @@ class SoundManager {
         playTone(480, now + 0.35, 0.1);
     }
 
-    playNarratorVoice() {
+    playNarratorVoice(speaker = 'Narrator') {
         if (this.muted || !this.initialized) return;
 
-        // Typewriter-like click for narrator text
+        // "You" speaker is silent
+        if (speaker === 'You') return;
+
         const osc = this.audioContext.createOscillator();
         const gain = this.audioContext.createGain();
+        const now = this.audioContext.currentTime;
 
         osc.connect(gain);
         gain.connect(this.sfxGain);
 
-        osc.type = 'square';
-        osc.frequency.value = 800 + Math.random() * 200;
-
-        const now = this.audioContext.currentTime;
-        gain.gain.setValueAtTime(0.08, now);
-        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.05);
-
-        osc.start(now);
-        osc.stop(now + 0.05);
+        // Different voice characteristics per speaker
+        if (speaker === '???') {
+            // Mysterious/distorted - low, glitchy
+            osc.type = 'sawtooth';
+            osc.frequency.value = 200 + Math.random() * 150;
+            gain.gain.setValueAtTime(0.06, now);
+            gain.gain.exponentialRampToValueAtTime(0.01, now + 0.08);
+            osc.start(now);
+            osc.stop(now + 0.08);
+        } else if (speaker === 'Narrator') {
+            // Clear, authoritative - higher pitch
+            osc.type = 'square';
+            osc.frequency.value = 800 + Math.random() * 200;
+            gain.gain.setValueAtTime(0.08, now);
+            gain.gain.exponentialRampToValueAtTime(0.01, now + 0.05);
+            osc.start(now);
+            osc.stop(now + 0.05);
+        } else if (speaker === 'Worker 1' || speaker === 'Worker 2') {
+            // Office workers - mid-range, slightly muffled
+            osc.type = 'triangle';
+            const basePitch = speaker === 'Worker 1' ? 400 : 350;
+            osc.frequency.value = basePitch + Math.random() * 100;
+            gain.gain.setValueAtTime(0.07, now);
+            gain.gain.exponentialRampToValueAtTime(0.01, now + 0.06);
+            osc.start(now);
+            osc.stop(now + 0.06);
+        } else if (speaker === 'Tech 1' || speaker === 'Tech 2') {
+            // Tech workers - slightly robotic/digital
+            osc.type = 'square';
+            const basePitch = speaker === 'Tech 1' ? 600 : 550;
+            osc.frequency.value = basePitch + Math.random() * 80;
+            gain.gain.setValueAtTime(0.05, now);
+            gain.gain.exponentialRampToValueAtTime(0.01, now + 0.04);
+            osc.start(now);
+            osc.stop(now + 0.04);
+        } else if (speaker === 'Mia') {
+            // Player character when named - soft, warm
+            osc.type = 'sine';
+            osc.frequency.value = 500 + Math.random() * 150;
+            gain.gain.setValueAtTime(0.06, now);
+            gain.gain.exponentialRampToValueAtTime(0.01, now + 0.05);
+            osc.start(now);
+            osc.stop(now + 0.05);
+        } else {
+            // Default fallback - standard typewriter
+            osc.type = 'square';
+            osc.frequency.value = 700 + Math.random() * 200;
+            gain.gain.setValueAtTime(0.07, now);
+            gain.gain.exponentialRampToValueAtTime(0.01, now + 0.05);
+            osc.start(now);
+            osc.stop(now + 0.05);
+        }
     }
 }
 
@@ -1324,17 +1370,17 @@ const levels = [
         // Intro dialogue from player character
         introDialogue: [
             { text: "...", speaker: "???" },
-            { text: "What is this place?", speaker: "???" },
             { text: "It's so dark...", speaker: "???" },
-            { text: "Wait- is that...?", speaker: "???" },
-            { text: "I should crawl through the vent.", speaker: "???" },
-            { text: "I don't want them to see me...", speaker: "???" }
+            { text: "The hell...?", speaker: "???" },
+            { text: "Crap-", speaker: "???" },
+            { text: "Move me! Move us! Move! Put us in the vent before he sees!", speaker: "???" },
+            { text: "What...? Okay...", speaker: "You" }
         ],
-        // Vent peek locations - rooms you can spy on
+        // Vent peek locations - rooms you can spy on (positioned along the climbing path)
         ventPeeks: [
             {
                 id: 'room1',
-                x: 200, y: 100,
+                x: 100, y: 420,
                 roomName: "Break Room",
                 npcs: [
                     { x: 50, y: 80, color: '#555555' },
@@ -1349,7 +1395,7 @@ const levels = [
             },
             {
                 id: 'room2',
-                x: 450, y: 200,
+                x: 350, y: 300,
                 roomName: "Copy Room",
                 npcs: [
                     { x: 80, y: 80, color: '#4a4a4a' }
@@ -1362,7 +1408,7 @@ const levels = [
             },
             {
                 id: 'room3',
-                x: 650, y: 150,
+                x: 550, y: 180,
                 roomName: "Server Room",
                 npcs: [
                     { x: 70, y: 70, color: '#3a3a3a' },
@@ -1376,19 +1422,31 @@ const levels = [
                 ]
             }
         ],
-        // Vent path platforms (inside the vent system)
+        // Vent path platforms - climbing UP to the flag with vents along the way
         ventPlatforms: [
-            { x: 0, y: 550, w: 800, h: 50, isVent: true },
-            { x: 0, y: 50, w: 800, h: 30, isVent: true }, // Ceiling
-            { x: 150, y: 300, w: 150, h: 20, isVent: true },
-            { x: 400, y: 400, w: 150, h: 20, isVent: true },
-            { x: 600, y: 250, w: 150, h: 20, isVent: true },
+            // Ground level
+            { x: 0, y: 550, w: 200, h: 50, isVent: true },
+            // First vent peek area (Break Room)
+            { x: 50, y: 450, w: 120, h: 20, isVent: true },
+            // Climbing platforms
+            { x: 200, y: 400, w: 100, h: 20, isVent: true },
+            // Second vent peek area (Copy Room)
+            { x: 300, y: 330, w: 120, h: 20, isVent: true },
+            // More climbing
+            { x: 450, y: 270, w: 100, h: 20, isVent: true },
+            // Third vent peek area (Server Room)
+            { x: 500, y: 210, w: 120, h: 20, isVent: true },
+            // Final climb to flag
+            { x: 650, y: 150, w: 100, h: 20, isVent: true },
+            // Flag platform at top
+            { x: 700, y: 90, w: 100, h: 20, isVent: true },
         ],
         // Regular platforms (initial office view before entering vent)
         platforms: [
             { x: 0, y: 550, w: 800, h: 50 }
         ],
-        goal: { x: 750, y: 480 }
+        // Goal at the highest point
+        goal: { x: 730, y: 30 }
     }
 ];
 
@@ -3068,9 +3126,9 @@ function drawDialogueBox(speaker, text, timeInMessage) {
     const charsToShow = Math.floor(timeInMessage / 2); // Slightly faster typing
     const displayText = text.substring(0, charsToShow);
 
-    // Play sound for each new character
+    // Play sound for each new character (different voice per speaker)
     if (charsToShow > 0 && charsToShow <= text.length && timeInMessage % 3 === 1) {
-        sound.playNarratorVoice();
+        sound.playNarratorVoice(speaker);
     }
 
     // Draw wrapped text with typewriter effect
