@@ -4,7 +4,7 @@
 
 // Build Info (for debugging - set DEBUG_MODE to false for release)
 const BUILD_VERSION = "0.1.0";
-const BUILD_NUMBER = 26;
+const BUILD_NUMBER = 27;
 const BUILD_DATE = "2026-01-03";
 const DEBUG_MODE = true;
 
@@ -2233,17 +2233,8 @@ function gameLoop() {
         // Check all dialogue states where ??? speaks
         let pingIsTalking = false;
 
-        // NOTE: Level 1 first phone call intentionally has NO talking animation
+        // NOTE: Level 1 first phone call and choice responses intentionally have NO talking animation
         // (Ping is mysterious at this point, we don't show them talking yet)
-
-        // Level 1 choice responses (check if current message is ???)
-        if (choiceMessagePhase > 0 && choiceMessagePhase <= choice1Responses.length) {
-            const responses = selectedChoice === 0 ? choice1Responses : choice2Responses;
-            const responseIndex = choiceMessagePhase - 1;
-            if (responseIndex < responses.length && responses[responseIndex].speaker === '???') {
-                pingIsTalking = true;
-            }
-        }
 
         // Level 9 player dialogue (all ??? speaker)
         if (level9PlayerDialogueActive) {
@@ -2821,8 +2812,8 @@ function drawPhoneInteraction() {
                 selectedChoice = 0;
             }
         } else {
-            // Level 1 first phone call: ??? uses Narrator voice (Ping before we know the name)
-            drawDialogueBox('???', message.text, narratorTimer, 'Narrator');
+            // Level 1 first phone call: ??? uses Narrator voice and blue color (Ping before we know the name)
+            drawDialogueBox('???', message.text, narratorTimer, 'Narrator', '#4a90d9');
         }
     }
 
@@ -2900,7 +2891,12 @@ function drawPhoneInteraction() {
                     dialogueChoiceActive = false;
                 }
             } else {
-                drawDialogueBox(response.speaker, response.text, choiceMessageTimer);
+                // Level 1 choice responses: ??? uses Narrator voice and blue color
+                if (response.speaker === '???') {
+                    drawDialogueBox(response.speaker, response.text, choiceMessageTimer, 'Narrator', '#4a90d9');
+                } else {
+                    drawDialogueBox(response.speaker, response.text, choiceMessageTimer);
+                }
             }
         }
     }
@@ -3121,7 +3117,7 @@ function drawLevel9Choices() {
     ctx.textAlign = 'left';
 }
 
-function drawDialogueBox(speaker, text, timeInMessage, voiceOverride = null) {
+function drawDialogueBox(speaker, text, timeInMessage, voiceOverride = null, colorOverride = null) {
     const boxWidth = 600;
     const maxTextWidth = boxWidth - 40; // Padding on both sides
     const lineHeight = 24;
@@ -3167,8 +3163,8 @@ function drawDialogueBox(speaker, text, timeInMessage, voiceOverride = null) {
     ctx.roundRect(boxX, boxY, boxWidth, boxHeight, 8);
     ctx.stroke();
 
-    // Speaker label
-    ctx.fillStyle = speaker === 'Narrator' ? '#4a90d9' : '#e94560';
+    // Speaker label (with optional color override)
+    ctx.fillStyle = colorOverride || (speaker === 'Narrator' ? '#4a90d9' : '#e94560');
     ctx.font = 'bold 14px "Segoe UI", sans-serif';
     ctx.fillText(speaker, boxX + 20, boxY + 22);
 
