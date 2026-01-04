@@ -1721,6 +1721,24 @@ let stage2ResponsePhase = 0;
 let stage2ResponseTimer = 0;
 let stage2VentsViewed = {}; // Track which Stage 2 vents have been viewed (by id)
 
+// Level 8 Stage 2 - Landing event state (when Ping lands on bottom platform)
+let stage2LandingTriggered = false;
+let stage2LandingActive = false;
+let stage2LandingPhase = 0;
+let stage2LandingTimer = 0;
+let stage2WasInAir = false; // Track if player was in the air before landing
+
+// Stage 2 landing confused chatter messages
+const stage2LandingMessages = [
+    { speaker: "???", text: "*THUMP*" },
+    { speaker: "Worker 1", text: "What the hell was that?!" },
+    { speaker: "Worker 2", text: "Did something fall?" },
+    { speaker: "Worker 1", text: "It came from the vents..." },
+    { speaker: "Worker 2", text: "Should we call HR?" },
+    { speaker: "Worker 1", text: "I'm not going up there. You call them." },
+    { speaker: "Worker 2", text: "...Maybe it was nothing." }
+];
+
 // Stage 2 intro messages
 const stage2IntroMessages = [
     { speaker: "You", text: "Ping...?" },
@@ -1916,8 +1934,19 @@ function loadStage2() {
         );
     }
 
-    // Create the goal in stage 2
-    goal = new Goal(level.stage2.goal.x, level.stage2.goal.y, level.hasBlood);
+    // Create the goal in stage 2 (except Level 8 which has no goal)
+    if (currentLevel === 7) {
+        // Level 8 has no goal - landing triggers dialogue instead
+        goal = null;
+        // Reset landing event state
+        stage2LandingTriggered = false;
+        stage2LandingActive = false;
+        stage2LandingPhase = 0;
+        stage2LandingTimer = 0;
+        stage2WasInAir = true; // Player starts in the air (will fall)
+    } else {
+        goal = new Goal(level.stage2.goal.x, level.stage2.goal.y, level.hasBlood);
+    }
 
     // Clear key and door (no longer needed)
     levelKey = null;
@@ -1952,6 +1981,48 @@ SoundManager.prototype.playLevelComplete = function() {
         osc.start(startTime);
         osc.stop(startTime + 0.3);
     });
+};
+
+// Heavy thump sound for landing
+SoundManager.prototype.playThump = function() {
+    if (this.muted || !this.initialized) return;
+
+    // Deep bass thump
+    const osc = this.audioContext.createOscillator();
+    const gain = this.audioContext.createGain();
+
+    osc.connect(gain);
+    gain.connect(this.sfxGain);
+
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(80, this.audioContext.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(30, this.audioContext.currentTime + 0.2);
+
+    gain.gain.setValueAtTime(0.6, this.audioContext.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + 0.3);
+
+    osc.start(this.audioContext.currentTime);
+    osc.stop(this.audioContext.currentTime + 0.3);
+
+    // Add some noise for impact
+    const noiseLength = 0.1;
+    const bufferSize = this.audioContext.sampleRate * noiseLength;
+    const noiseBuffer = this.audioContext.createBuffer(1, bufferSize, this.audioContext.sampleRate);
+    const output = noiseBuffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) {
+        output[i] = Math.random() * 2 - 1;
+    }
+
+    const noise = this.audioContext.createBufferSource();
+    const noiseGain = this.audioContext.createGain();
+    noise.buffer = noiseBuffer;
+    noise.connect(noiseGain);
+    noiseGain.connect(this.sfxGain);
+
+    noiseGain.gain.setValueAtTime(0.3, this.audioContext.currentTime);
+    noiseGain.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + noiseLength);
+
+    noise.start(this.audioContext.currentTime);
 };
 
 // Don't load level immediately - start in menu state
@@ -2328,6 +2399,9 @@ function gameLoop() {
     if (stage2ResponseActive) {
         stage2ResponseTimer++;
     }
+    if (stage2LandingActive) {
+        stage2LandingTimer++;
+    }
 
     // Handle Level 10 peek dialogue
     if (isPeeking && currentPeekPoint) {
@@ -2390,7 +2464,7 @@ function gameLoop() {
             level8NarratorActive || level9NarratorActive || level9PlayerDialogueActive ||
             level9SecondCallActive || level9ChoiceActive || level9ChoiceResponsePhase > 0 ||
             level10IntroActive || isPeeking ||
-            stage2IntroActive || stage2ChoiceActive || stage2ResponseActive;
+            stage2IntroActive || stage2ChoiceActive || stage2ResponseActive || stage2LandingActive;
         if (!isInDialogue) {
             player.update(platforms);
 
@@ -2403,6 +2477,21 @@ function gameLoop() {
                     player.x = levelDoor.x + levelDoor.width;
                 }
                 player.velX = 0;
+            }
+
+            // Level 8 Stage 2 landing detection
+            if (currentLevel === 7 && currentStage === 2 && !stage2LandingTriggered) {
+                // Check if player was in the air and is now on the ground (bottom platform at y: 560)
+                if (stage2WasInAir && player.isGrounded) {
+                    // Player just landed - trigger thump and dialogue
+                    stage2LandingTriggered = true;
+                    stage2LandingActive = true;
+                    stage2LandingPhase = 0;
+                    stage2LandingTimer = 0;
+                    sound.playThump();
+                }
+                // Track if player is in the air
+                stage2WasInAir = !player.isGrounded;
             }
         }
 
@@ -2476,17 +2565,7 @@ function gameLoop() {
             levelKey.checkCollision(player);
         }
 
-        // Check door walk-through in vent system (automatically triggers stage 2)
-        if (isInVent && levelDoor && levels[currentLevel]?.hasStages && currentStage === 1) {
-            // Check if player collides with door
-            if (player.x + player.width > levelDoor.x &&
-                player.x < levelDoor.x + levelDoor.width &&
-                player.y + player.height > levelDoor.y &&
-                player.y < levelDoor.y + levelDoor.height) {
-                // Transition to stage 2
-                loadStage2();
-            }
-        }
+        // Door blocks player until opened with 'E' key (handled in key events)
 
         // Check goal collision (only if not in dialogue and door is open or no door)
         const canReachGoal = !levelDoor || (levelDoor.state === 'open' && levelDoor.openProgress >= 1);
@@ -3180,6 +3259,12 @@ function drawPhoneInteraction() {
         }
     }
 
+    // Draw Stage 2 landing confused chatter
+    if (stage2LandingActive && stage2LandingPhase < stage2LandingMessages.length) {
+        const message = stage2LandingMessages[stage2LandingPhase];
+        drawDialogueBox(message.speaker, message.text, stage2LandingTimer);
+    }
+
     // Draw Level 10 peek view (overlays everything)
     // Player must press Enter/E to advance peek dialogue
     if (isPeeking && currentPeekPoint) {
@@ -3569,6 +3654,16 @@ function advanceDialogue() {
                     }
                 }
             }
+        }
+        return true;
+    } else if (stage2LandingActive) {
+        stage2LandingPhase++;
+        stage2LandingTimer = 0;
+        if (stage2LandingPhase >= stage2LandingMessages.length) {
+            stage2LandingActive = false;
+            // Level 8 complete after landing dialogue
+            levelComplete = true;
+            sound.playLevelComplete();
         }
         return true;
     } else if (isPeeking && currentPeekPoint) {
