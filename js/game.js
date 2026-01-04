@@ -4,7 +4,7 @@
 
 // Build Info (for debugging - set DEBUG_MODE to false for release)
 const BUILD_VERSION = "0.1.0";
-const BUILD_NUMBER = 36;
+const BUILD_NUMBER = 37;
 const BUILD_DATE = "2026-01-03";
 const DEBUG_MODE = true;
 
@@ -1446,26 +1446,16 @@ const levels = [
                 { x: 700, y: 50, w: 100, h: 20, isVent: true },
             ]
         },
-        // Stage 2: Descending platforms - no vents, just platforming
+        // Stage 2: Straight drop - top platform to bottom
         stage2: {
-            playerStart: { x: 50, y: 80 },
+            playerStart: { x: 350, y: 80 },
             goal: { x: 700, y: 520 },
             ventPeeks: [],
             ventPlatforms: [
-                // Starting platform at top left
-                { x: 0, y: 120, w: 180, h: 20, isVent: true },
-                // Jump right and down
-                { x: 250, y: 180, w: 150, h: 20, isVent: true },
-                // Jump left and down
-                { x: 80, y: 260, w: 150, h: 20, isVent: true },
-                // Jump right and down
-                { x: 300, y: 340, w: 150, h: 20, isVent: true },
-                // Jump left and down
-                { x: 100, y: 420, w: 150, h: 20, isVent: true },
-                // Final jump right to goal platform
-                { x: 350, y: 500, w: 120, h: 20, isVent: true },
-                // Goal platform at bottom right
-                { x: 600, y: 560, w: 200, h: 40, isVent: true },
+                // Starting platform at top (player drops from here)
+                { x: 300, y: 120, w: 200, h: 20, isVent: true },
+                // Bottom platform with goal (long drop down)
+                { x: 200, y: 560, w: 600, h: 40, isVent: true },
             ]
         },
         // Legacy vent peeks (for stage 1 initial load - Executive area)
@@ -1729,7 +1719,7 @@ let stage2IntroPhase = 0;
 let stage2IntroTimer = 0;
 let stage2ChoiceActive = false;
 let stage2SelectedChoice = 0;
-let stage2ChoicesUsed = [false, false, false, false]; // Track which choices have been used
+let stage2ChoicesUsed = [false, false, false]; // Track which choices have been used (3 choices)
 let stage2ResponseActive = false;
 let stage2ResponsePhase = 0;
 let stage2ResponseTimer = 0;
@@ -1744,12 +1734,11 @@ const stage2IntroMessages = [
     { speaker: "Ping", text: "That's the name of the title..." }
 ];
 
-// Stage 2 choice options
+// Stage 2 choice options (3 choices)
 const stage2Choices = [
     { text: "What's the contract all about?", key: "1" },
     { text: "You don't know your true purpose?", key: "2" },
-    { text: "Was that the new guy back there?", key: "3" },
-    { text: "What did they mean by what you are?", key: "4" }
+    { text: "What did they mean by what you are?", key: "3" }
 ];
 
 // Stage 2 choice responses
@@ -1767,13 +1756,6 @@ const stage2Choice2Responses = [
 ];
 
 const stage2Choice3Responses = [
-    { speaker: "Ping", text: "..." },
-    { speaker: "Ping", text: "Their words. Not mine." },
-    { speaker: "You", text: "Sorry..." },
-    { speaker: "Ping", text: "..." }
-];
-
-const stage2Choice4Responses = [
     { speaker: "Ping", text: "..." },
     { speaker: "Ping", text: "I've... never seen them before." },
     { speaker: "Ping", text: "..." },
@@ -2482,8 +2464,7 @@ function gameLoop() {
         if (stage2ResponseActive && stage2ResponsePhase > 0) {
             const responses = stage2SelectedChoice === 0 ? stage2Choice1Responses :
                              stage2SelectedChoice === 1 ? stage2Choice2Responses :
-                             stage2SelectedChoice === 2 ? stage2Choice3Responses :
-                             stage2Choice4Responses;
+                             stage2Choice3Responses;
             const responseIndex = stage2ResponsePhase - 1;
             if (responses && responseIndex < responses.length && responses[responseIndex].speaker === 'Ping') {
                 pingIsTalking = true;
@@ -3195,8 +3176,7 @@ function drawPhoneInteraction() {
     if (stage2ResponseActive && stage2ResponsePhase > 0) {
         const responses = stage2SelectedChoice === 0 ? stage2Choice1Responses :
                          stage2SelectedChoice === 1 ? stage2Choice2Responses :
-                         stage2SelectedChoice === 2 ? stage2Choice3Responses :
-                         stage2Choice4Responses;
+                         stage2Choice3Responses;
 
         if (stage2ResponsePhase <= responses.length) {
             const response = responses[stage2ResponsePhase - 1];
@@ -3560,7 +3540,7 @@ function advanceDialogue() {
             stage2ChoiceActive = true;
             stage2SelectedChoice = 0;
             // Find first unused choice
-            for (let i = 0; i < 4; i++) {
+            for (let i = 0; i < 3; i++) {
                 if (!stage2ChoicesUsed[i]) {
                     stage2SelectedChoice = i;
                     break;
@@ -3571,8 +3551,7 @@ function advanceDialogue() {
     } else if (stage2ResponseActive) {
         const responses = stage2SelectedChoice === 0 ? stage2Choice1Responses :
                          stage2SelectedChoice === 1 ? stage2Choice2Responses :
-                         stage2SelectedChoice === 2 ? stage2Choice3Responses :
-                         stage2Choice4Responses;
+                         stage2Choice3Responses;
         stage2ResponsePhase++;
         stage2ResponseTimer = 0;
         if (stage2ResponsePhase > responses.length) {
@@ -3587,7 +3566,7 @@ function advanceDialogue() {
                 // Show choices again
                 stage2ChoiceActive = true;
                 // Find first unused choice
-                for (let i = 0; i < 4; i++) {
+                for (let i = 0; i < 3; i++) {
                     if (!stage2ChoicesUsed[i]) {
                         stage2SelectedChoice = i;
                         break;
@@ -3726,7 +3705,7 @@ document.addEventListener('keydown', (e) => {
                     stage2IntroActive = false;
                     stage2ChoiceActive = false;
                     stage2ResponseActive = false;
-                    stage2ChoicesUsed = [false, false, false, false];
+                    stage2ChoicesUsed = [false, false, false];
 
                     player.x = 50;
                     player.y = 480;
@@ -3807,7 +3786,7 @@ document.addEventListener('keydown', (e) => {
                 e.preventDefault();
             } else if (stage2ChoiceActive && !stage2ResponseActive) {
                 // Find next unused choice
-                for (let i = stage2SelectedChoice + 1; i < 4; i++) {
+                for (let i = stage2SelectedChoice + 1; i < 3; i++) {
                     if (!stage2ChoicesUsed[i]) {
                         stage2SelectedChoice = i;
                         break;
@@ -3893,13 +3872,7 @@ document.addEventListener('keydown', (e) => {
             }
             break;
         case '4':
-            if (stage2ChoiceActive && !stage2ResponseActive && !stage2ChoicesUsed[3]) {
-                stage2SelectedChoice = 3;
-                stage2ChoicesUsed[3] = true;
-                stage2ResponseActive = true;
-                stage2ResponsePhase = 1;
-                stage2ResponseTimer = 0;
-            } else if (gameState === 'playing' && !dialogueChoiceActive && !level9ChoiceActive && !stage2ChoiceActive) {
+            if (gameState === 'playing' && !dialogueChoiceActive && !level9ChoiceActive && !stage2ChoiceActive) {
                 currentLevel = 3;
                 loadLevel(currentLevel);
             }
