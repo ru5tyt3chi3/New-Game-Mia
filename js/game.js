@@ -4,7 +4,7 @@
 
 // Build Info (for debugging - set DEBUG_MODE to false for release)
 const BUILD_VERSION = "0.1.0";
-const BUILD_NUMBER = 34;
+const BUILD_NUMBER = 35;
 const BUILD_DATE = "2026-01-03";
 const DEBUG_MODE = true;
 
@@ -1379,8 +1379,77 @@ const levels = [
             { text: "Move me! Move us! Move! Put us in the vent before he sees!", speaker: "???" },
             { text: "What...? Okay...", speaker: "You" }
         ],
-        // Stage 1: Climb up through vents
+        // Stage 1: Descend through vents - Executive area (Ping dialogue triggers after all vents)
         stage1: {
+            ventPeeks: [
+                {
+                    id: 'room4',
+                    x: 150, y: 180,
+                    roomName: "Executive Lounge",
+                    npcs: [
+                        { x: 60, y: 75, color: '#2a2a2a' },
+                        { x: 140, y: 80, color: '#333333' }
+                    ],
+                    dialogue: [
+                        { speaker: "Exec 1", text: "The contract is almost finalized." },
+                        { speaker: "Exec 2", text: "Good. The red one has been... cooperative." },
+                        { speaker: "Exec 1", text: "Ping doesn't even know what it's doing." },
+                        { speaker: "Exec 2", text: "That's the beauty of it. Complete automation." }
+                    ]
+                },
+                {
+                    id: 'room5',
+                    x: 400, y: 300,
+                    roomName: "HR Office",
+                    npcs: [
+                        { x: 90, y: 80, color: '#484848' }
+                    ],
+                    dialogue: [
+                        { speaker: "HR", text: "Employee file: Ping." },
+                        { speaker: "HR", text: "Status: Active. Classification: Asset." },
+                        { speaker: "HR", text: "Notes: Subject unaware of true purpose." },
+                        { speaker: "HR", text: "Contract binding upon... completion." }
+                    ]
+                },
+                {
+                    id: 'room6',
+                    x: 600, y: 420,
+                    roomName: "Archive Room",
+                    npcs: [
+                        { x: 70, y: 70, color: '#3d3d3d' },
+                        { x: 130, y: 85, color: '#4f4f4f' }
+                    ],
+                    dialogue: [
+                        { speaker: "Archivist 1", text: "Why do they keep files on the red one?" },
+                        { speaker: "Archivist 2", text: "Ping? It's been here longer than any of us." },
+                        { speaker: "Archivist 1", text: "But what IS it exactly?" },
+                        { speaker: "Archivist 2", text: "Don't ask. Just... don't." }
+                    ]
+                }
+            ],
+            ventPlatforms: [
+                // Ground level start
+                { x: 0, y: 550, w: 200, h: 50, isVent: true },
+                // First peek area (Executive Lounge)
+                { x: 100, y: 450, w: 120, h: 20, isVent: true },
+                // Descending platforms
+                { x: 250, y: 380, w: 100, h: 20, isVent: true },
+                // Second peek area (HR Office)
+                { x: 350, y: 310, w: 120, h: 20, isVent: true },
+                // More descent
+                { x: 500, y: 240, w: 100, h: 20, isVent: true },
+                // Third peek area (Archive Room)
+                { x: 550, y: 170, w: 120, h: 20, isVent: true },
+                // Final climb to door
+                { x: 650, y: 100, w: 100, h: 20, isVent: true },
+                // Door platform at top
+                { x: 700, y: 40, w: 100, h: 20, isVent: true },
+            ]
+        },
+        // Stage 2: Continue through vents - Worker area (ascending)
+        stage2: {
+            playerStart: { x: 50, y: 500 },
+            goal: { x: 700, y: 50 },
             ventPeeks: [
                 {
                     id: 'room1',
@@ -1439,143 +1508,77 @@ const levels = [
                 { x: 450, y: 270, w: 100, h: 20, isVent: true },
                 // Third vent peek area (Server Room)
                 { x: 500, y: 210, w: 120, h: 20, isVent: true },
-                // Final climb to door
+                // Final climb to goal
                 { x: 650, y: 150, w: 100, h: 20, isVent: true },
-                // Door platform at top
-                { x: 700, y: 90, w: 100, h: 20, isVent: true },
+                // Goal platform at top
+                { x: 650, y: 90, w: 150, h: 50, isVent: true },
             ]
         },
-        // Stage 2: Continue through vents after door - descending
-        stage2: {
-            playerStart: { x: 50, y: 100 },
-            goal: { x: 700, y: 500 },
-            ventPeeks: [
-                {
-                    id: 'room4',
-                    x: 150, y: 180,
-                    roomName: "Executive Lounge",
-                    npcs: [
-                        { x: 60, y: 75, color: '#2a2a2a' },
-                        { x: 140, y: 80, color: '#333333' }
-                    ],
-                    dialogue: [
-                        { speaker: "Exec 1", text: "The contract is almost finalized." },
-                        { speaker: "Exec 2", text: "Good. The red one has been... cooperative." },
-                        { speaker: "Exec 1", text: "Ping doesn't even know what it's doing." },
-                        { speaker: "Exec 2", text: "That's the beauty of it. Complete automation." }
-                    ]
-                },
-                {
-                    id: 'room5',
-                    x: 400, y: 300,
-                    roomName: "HR Office",
-                    npcs: [
-                        { x: 90, y: 80, color: '#484848' }
-                    ],
-                    dialogue: [
-                        { speaker: "HR", text: "Employee file: Ping." },
-                        { speaker: "HR", text: "Status: Active. Classification: Asset." },
-                        { speaker: "HR", text: "Notes: Subject unaware of true purpose." },
-                        { speaker: "HR", text: "Contract binding upon... completion." }
-                    ]
-                },
-                {
-                    id: 'room6',
-                    x: 600, y: 420,
-                    roomName: "Archive Room",
-                    npcs: [
-                        { x: 70, y: 70, color: '#3d3d3d' },
-                        { x: 130, y: 85, color: '#4f4f4f' }
-                    ],
-                    dialogue: [
-                        { speaker: "Archivist 1", text: "Why do they keep files on the red one?" },
-                        { speaker: "Archivist 2", text: "Ping? It's been here longer than any of us." },
-                        { speaker: "Archivist 1", text: "But what IS it exactly?" },
-                        { speaker: "Archivist 2", text: "Don't ask. Just... don't." }
-                    ]
-                }
-            ],
-            ventPlatforms: [
-                // Start platform (coming from door)
-                { x: 0, y: 150, w: 150, h: 20, isVent: true },
-                // First peek area (Executive Lounge)
-                { x: 100, y: 220, w: 120, h: 20, isVent: true },
-                // Descending platforms
-                { x: 250, y: 280, w: 100, h: 20, isVent: true },
-                // Second peek area (HR Office)
-                { x: 350, y: 340, w: 120, h: 20, isVent: true },
-                // More descent
-                { x: 500, y: 400, w: 100, h: 20, isVent: true },
-                // Third peek area (Archive Room)
-                { x: 550, y: 460, w: 120, h: 20, isVent: true },
-                // Final platform with goal
-                { x: 650, y: 550, w: 150, h: 50, isVent: true },
-            ]
-        },
-        // Legacy vent peeks (for stage 1 initial load)
+        // Legacy vent peeks (for stage 1 initial load - Executive area)
         ventPeeks: [
             {
-                id: 'room1',
-                x: 100, y: 420,
-                roomName: "Break Room",
+                id: 'room4',
+                x: 150, y: 180,
+                roomName: "Executive Lounge",
                 npcs: [
-                    { x: 50, y: 80, color: '#555555' },
-                    { x: 120, y: 80, color: '#444444' }
+                    { x: 60, y: 75, color: '#2a2a2a' },
+                    { x: 140, y: 80, color: '#333333' }
                 ],
                 dialogue: [
-                    { speaker: "Worker 1", text: "Did you hear about the new guy?" },
-                    { speaker: "Worker 2", text: "Yeah... something's off about him." },
-                    { speaker: "Worker 1", text: "He never leaves his desk." },
-                    { speaker: "Worker 2", text: "I heard typing at 3 AM once..." }
+                    { speaker: "Exec 1", text: "The contract is almost finalized." },
+                    { speaker: "Exec 2", text: "Good. The red one has been... cooperative." },
+                    { speaker: "Exec 1", text: "Ping doesn't even know what it's doing." },
+                    { speaker: "Exec 2", text: "That's the beauty of it. Complete automation." }
                 ]
             },
             {
-                id: 'room2',
-                x: 350, y: 300,
-                roomName: "Copy Room",
+                id: 'room5',
+                x: 400, y: 300,
+                roomName: "HR Office",
                 npcs: [
-                    { x: 80, y: 80, color: '#4a4a4a' }
+                    { x: 90, y: 80, color: '#484848' }
                 ],
                 dialogue: [
-                    { speaker: "Worker", text: "These reports don't make sense..." },
-                    { speaker: "Worker", text: "Why does management need all this data?" },
-                    { speaker: "Worker", text: "...I should stop asking questions." }
+                    { speaker: "HR", text: "Employee file: Ping." },
+                    { speaker: "HR", text: "Status: Active. Classification: Asset." },
+                    { speaker: "HR", text: "Notes: Subject unaware of true purpose." },
+                    { speaker: "HR", text: "Contract binding upon... completion." }
                 ]
             },
             {
-                id: 'room3',
-                x: 550, y: 180,
-                roomName: "Server Room",
+                id: 'room6',
+                x: 600, y: 420,
+                roomName: "Archive Room",
                 npcs: [
-                    { x: 70, y: 70, color: '#3a3a3a' },
-                    { x: 130, y: 85, color: '#505050' }
+                    { x: 70, y: 70, color: '#3d3d3d' },
+                    { x: 130, y: 85, color: '#4f4f4f' }
                 ],
                 dialogue: [
-                    { speaker: "Tech 1", text: "The servers are running hot again." },
-                    { speaker: "Tech 2", text: "It's like something's using all the processing power." },
-                    { speaker: "Tech 1", text: "For what though?" },
-                    { speaker: "Tech 2", text: "I... I don't want to know." }
+                    { speaker: "Archivist 1", text: "Why do they keep files on the red one?" },
+                    { speaker: "Archivist 2", text: "Ping? It's been here longer than any of us." },
+                    { speaker: "Archivist 1", text: "But what IS it exactly?" },
+                    { speaker: "Archivist 2", text: "Don't ask. Just... don't." }
                 ]
             }
         ],
-        // Legacy vent platforms (for stage 1 initial load)
+        // Legacy vent platforms (for stage 1 initial load - Executive area)
         ventPlatforms: [
-            // Ground level
+            // Ground level start
             { x: 0, y: 550, w: 200, h: 50, isVent: true },
-            // First vent peek area (Break Room)
-            { x: 50, y: 450, w: 120, h: 20, isVent: true },
-            // Climbing platforms
-            { x: 200, y: 400, w: 100, h: 20, isVent: true },
-            // Second vent peek area (Copy Room)
-            { x: 300, y: 330, w: 120, h: 20, isVent: true },
-            // More climbing
-            { x: 450, y: 270, w: 100, h: 20, isVent: true },
-            // Third vent peek area (Server Room)
-            { x: 500, y: 210, w: 120, h: 20, isVent: true },
+            // First peek area (Executive Lounge)
+            { x: 100, y: 450, w: 120, h: 20, isVent: true },
+            // Descending platforms
+            { x: 250, y: 380, w: 100, h: 20, isVent: true },
+            // Second peek area (HR Office)
+            { x: 350, y: 310, w: 120, h: 20, isVent: true },
+            // More descent
+            { x: 500, y: 240, w: 100, h: 20, isVent: true },
+            // Third peek area (Archive Room)
+            { x: 550, y: 170, w: 120, h: 20, isVent: true },
             // Final climb to door
-            { x: 650, y: 150, w: 100, h: 20, isVent: true },
+            { x: 650, y: 100, w: 100, h: 20, isVent: true },
             // Door platform at top
-            { x: 700, y: 90, w: 100, h: 20, isVent: true },
+            { x: 700, y: 40, w: 100, h: 20, isVent: true },
         ],
         // Regular platforms (initial office view before entering vent)
         platforms: [
@@ -1790,7 +1793,7 @@ const stage2IntroMessages = [
 // Stage 2 choice options
 const stage2Choices = [
     { text: "What's the contract all about?", key: "1" },
-    { text: "True purpose...?", key: "2" },
+    { text: "You don't know your true purpose?", key: "2" },
     { text: "Was that the new guy back there?", key: "3" },
     { text: "What did they mean by what you are?", key: "4" }
 ];
@@ -1993,16 +1996,6 @@ function loadStage2() {
     player.y = level.stage2.playerStart.y;
     player.velX = 0;
     player.velY = 0;
-
-    // Reset Stage 2 vent tracking for office levels (dialogue triggers after all vents viewed)
-    if (level.isOfficeLevel) {
-        stage2VentsViewed = {};
-        stage2IntroTriggered = false;
-        stage2IntroActive = false;
-        stage2ChoiceActive = false;
-        stage2ResponseActive = false;
-        stage2ChoicesUsed = [false, false, false, false];
-    }
 }
 
 // Add level complete sound to SoundManager
@@ -3654,14 +3647,14 @@ function advanceDialogue() {
             peekDialoguePhase++;
             peekDialogueTimer = 0;
         } else {
-            // Mark this vent as viewed (for Stage 2 tracking)
+            // Mark this vent as viewed (for Stage 1 Ping dialogue tracking)
             const level = levels[currentLevel];
-            if (level && level.isOfficeLevel && currentStage === 2 && currentPeekPoint.id) {
+            if (level && level.isOfficeLevel && currentStage === 1 && currentPeekPoint.id) {
                 stage2VentsViewed[currentPeekPoint.id] = true;
 
-                // Check if all Stage 2 vents have been viewed
-                if (level.stage2 && level.stage2.ventPeeks && !stage2IntroTriggered) {
-                    const allViewed = level.stage2.ventPeeks.every(vp => stage2VentsViewed[vp.id]);
+                // Check if all Stage 1 vents have been viewed
+                if (level.stage1 && level.stage1.ventPeeks && !stage2IntroTriggered) {
+                    const allViewed = level.stage1.ventPeeks.every(vp => stage2VentsViewed[vp.id]);
                     if (allViewed) {
                         // Trigger the Ping dialogue
                         stage2IntroTriggered = true;
@@ -3773,6 +3766,14 @@ document.addEventListener('keydown', (e) => {
                         const doorState = level.doorUnlocked ? 'unlocked' : 'locked';
                         levelDoor = new Door(level.doorPosition.x, level.doorPosition.y, doorState);
                     }
+                    // Reset Stage 1 vent tracking (Ping dialogue triggers after all vents viewed)
+                    stage2VentsViewed = {};
+                    stage2IntroTriggered = false;
+                    stage2IntroActive = false;
+                    stage2ChoiceActive = false;
+                    stage2ResponseActive = false;
+                    stage2ChoicesUsed = [false, false, false, false];
+
                     player.x = 50;
                     player.y = 480;
                 }
