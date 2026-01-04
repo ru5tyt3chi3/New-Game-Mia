@@ -1440,19 +1440,17 @@ const levels = [
                 { x: 480, y: 260, w: 120, h: 20, isVent: true },
                 // Third peek area (Archive Room)
                 { x: 550, y: 190, w: 140, h: 20, isVent: true },
-                // Final climb to door
-                { x: 650, y: 120, w: 120, h: 20, isVent: true },
-                // Door platform at top
-                { x: 700, y: 50, w: 100, h: 20, isVent: true },
+                // Final climb to door area
+                { x: 650, y: 120, w: 150, h: 20, isVent: true },
             ]
         },
         // Stage 2: Straight drop - top platform to bottom
         stage2: {
-            playerStart: { x: 350, y: 80 },
+            playerStart: { x: 380, y: 70 },
             goal: { x: 700, y: 520 },
             ventPeeks: [],
             ventPlatforms: [
-                // Starting platform at top (player drops from here)
+                // Starting platform at top (player spawns on this)
                 { x: 300, y: 120, w: 200, h: 20, isVent: true },
                 // Bottom platform with goal (long drop down)
                 { x: 200, y: 560, w: 600, h: 40, isVent: true },
@@ -1519,18 +1517,16 @@ const levels = [
             { x: 480, y: 260, w: 120, h: 20, isVent: true },
             // Third peek area (Archive Room)
             { x: 550, y: 190, w: 140, h: 20, isVent: true },
-            // Final climb to door
-            { x: 650, y: 120, w: 120, h: 20, isVent: true },
-            // Door platform at top
-            { x: 700, y: 50, w: 100, h: 20, isVent: true },
+            // Final climb to door area (door sits on this platform)
+            { x: 650, y: 120, w: 150, h: 20, isVent: true },
         ],
         // Regular platforms (initial office view before entering vent)
         platforms: [
             { x: 0, y: 550, w: 800, h: 50 }
         ],
-        // Door at the top of stage 1 (triggers stage 2)
+        // Door at the top of stage 1 (triggers stage 2) - on final platform
         hasDoor: true,
-        doorPosition: { x: 725, y: 10 },
+        doorPosition: { x: 700, y: 40 },
         doorUnlocked: true
     }
 ];
