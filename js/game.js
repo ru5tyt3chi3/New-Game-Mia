@@ -4,7 +4,7 @@
 
 // Build Info (for debugging - set DEBUG_MODE to false for release)
 const BUILD_VERSION = "0.1.0";
-const BUILD_NUMBER = 35;
+const BUILD_NUMBER = 36;
 const BUILD_DATE = "2026-01-03";
 const DEBUG_MODE = true;
 
@@ -1379,12 +1379,12 @@ const levels = [
             { text: "Move me! Move us! Move! Put us in the vent before he sees!", speaker: "???" },
             { text: "What...? Okay...", speaker: "You" }
         ],
-        // Stage 1: Descend through vents - Executive area (Ping dialogue triggers after all vents)
+        // Stage 1: Ascending through vents - Executive area (Ping dialogue triggers after all vents)
         stage1: {
             ventPeeks: [
                 {
                     id: 'room4',
-                    x: 150, y: 180,
+                    x: 120, y: 440,
                     roomName: "Executive Lounge",
                     npcs: [
                         { x: 60, y: 75, color: '#2a2a2a' },
@@ -1399,7 +1399,7 @@ const levels = [
                 },
                 {
                     id: 'room5',
-                    x: 400, y: 300,
+                    x: 380, y: 300,
                     roomName: "HR Office",
                     npcs: [
                         { x: 90, y: 80, color: '#484848' }
@@ -1413,7 +1413,7 @@ const levels = [
                 },
                 {
                     id: 'room6',
-                    x: 600, y: 420,
+                    x: 580, y: 160,
                     roomName: "Archive Room",
                     npcs: [
                         { x: 70, y: 70, color: '#3d3d3d' },
@@ -1429,96 +1429,50 @@ const levels = [
             ],
             ventPlatforms: [
                 // Ground level start
-                { x: 0, y: 550, w: 200, h: 50, isVent: true },
-                // First peek area (Executive Lounge)
-                { x: 100, y: 450, w: 120, h: 20, isVent: true },
-                // Descending platforms
-                { x: 250, y: 380, w: 100, h: 20, isVent: true },
+                { x: 0, y: 550, w: 250, h: 50, isVent: true },
+                // Jump up to first peek area (Executive Lounge)
+                { x: 80, y: 470, w: 140, h: 20, isVent: true },
+                // Climbing platforms - staggered for reachability
+                { x: 220, y: 400, w: 120, h: 20, isVent: true },
                 // Second peek area (HR Office)
-                { x: 350, y: 310, w: 120, h: 20, isVent: true },
-                // More descent
-                { x: 500, y: 240, w: 100, h: 20, isVent: true },
+                { x: 350, y: 330, w: 140, h: 20, isVent: true },
+                // More climbing
+                { x: 480, y: 260, w: 120, h: 20, isVent: true },
                 // Third peek area (Archive Room)
-                { x: 550, y: 170, w: 120, h: 20, isVent: true },
+                { x: 550, y: 190, w: 140, h: 20, isVent: true },
                 // Final climb to door
-                { x: 650, y: 100, w: 100, h: 20, isVent: true },
+                { x: 650, y: 120, w: 120, h: 20, isVent: true },
                 // Door platform at top
-                { x: 700, y: 40, w: 100, h: 20, isVent: true },
+                { x: 700, y: 50, w: 100, h: 20, isVent: true },
             ]
         },
-        // Stage 2: Continue through vents - Worker area (ascending)
+        // Stage 2: Descending platforms - no vents, just platforming
         stage2: {
-            playerStart: { x: 50, y: 500 },
-            goal: { x: 700, y: 50 },
-            ventPeeks: [
-                {
-                    id: 'room1',
-                    x: 100, y: 420,
-                    roomName: "Break Room",
-                    npcs: [
-                        { x: 50, y: 80, color: '#555555' },
-                        { x: 120, y: 80, color: '#444444' }
-                    ],
-                    dialogue: [
-                        { speaker: "Worker 1", text: "Did you hear about the new guy?" },
-                        { speaker: "Worker 2", text: "Yeah... something's off about him." },
-                        { speaker: "Worker 1", text: "He never leaves his desk." },
-                        { speaker: "Worker 2", text: "I heard typing at 3 AM once..." }
-                    ]
-                },
-                {
-                    id: 'room2',
-                    x: 350, y: 300,
-                    roomName: "Copy Room",
-                    npcs: [
-                        { x: 80, y: 80, color: '#4a4a4a' }
-                    ],
-                    dialogue: [
-                        { speaker: "Worker", text: "These reports don't make sense..." },
-                        { speaker: "Worker", text: "Why does management need all this data?" },
-                        { speaker: "Worker", text: "...I should stop asking questions." }
-                    ]
-                },
-                {
-                    id: 'room3',
-                    x: 550, y: 180,
-                    roomName: "Server Room",
-                    npcs: [
-                        { x: 70, y: 70, color: '#3a3a3a' },
-                        { x: 130, y: 85, color: '#505050' }
-                    ],
-                    dialogue: [
-                        { speaker: "Tech 1", text: "The servers are running hot again." },
-                        { speaker: "Tech 2", text: "It's like something's using all the processing power." },
-                        { speaker: "Tech 1", text: "For what though?" },
-                        { speaker: "Tech 2", text: "I... I don't want to know." }
-                    ]
-                }
-            ],
+            playerStart: { x: 50, y: 80 },
+            goal: { x: 700, y: 520 },
+            ventPeeks: [],
             ventPlatforms: [
-                // Ground level
-                { x: 0, y: 550, w: 200, h: 50, isVent: true },
-                // First vent peek area (Break Room)
-                { x: 50, y: 450, w: 120, h: 20, isVent: true },
-                // Climbing platforms
-                { x: 200, y: 400, w: 100, h: 20, isVent: true },
-                // Second vent peek area (Copy Room)
-                { x: 300, y: 330, w: 120, h: 20, isVent: true },
-                // More climbing
-                { x: 450, y: 270, w: 100, h: 20, isVent: true },
-                // Third vent peek area (Server Room)
-                { x: 500, y: 210, w: 120, h: 20, isVent: true },
-                // Final climb to goal
-                { x: 650, y: 150, w: 100, h: 20, isVent: true },
-                // Goal platform at top
-                { x: 650, y: 90, w: 150, h: 50, isVent: true },
+                // Starting platform at top left
+                { x: 0, y: 120, w: 180, h: 20, isVent: true },
+                // Jump right and down
+                { x: 250, y: 180, w: 150, h: 20, isVent: true },
+                // Jump left and down
+                { x: 80, y: 260, w: 150, h: 20, isVent: true },
+                // Jump right and down
+                { x: 300, y: 340, w: 150, h: 20, isVent: true },
+                // Jump left and down
+                { x: 100, y: 420, w: 150, h: 20, isVent: true },
+                // Final jump right to goal platform
+                { x: 350, y: 500, w: 120, h: 20, isVent: true },
+                // Goal platform at bottom right
+                { x: 600, y: 560, w: 200, h: 40, isVent: true },
             ]
         },
         // Legacy vent peeks (for stage 1 initial load - Executive area)
         ventPeeks: [
             {
                 id: 'room4',
-                x: 150, y: 180,
+                x: 120, y: 440,
                 roomName: "Executive Lounge",
                 npcs: [
                     { x: 60, y: 75, color: '#2a2a2a' },
@@ -1533,7 +1487,7 @@ const levels = [
             },
             {
                 id: 'room5',
-                x: 400, y: 300,
+                x: 380, y: 300,
                 roomName: "HR Office",
                 npcs: [
                     { x: 90, y: 80, color: '#484848' }
@@ -1547,7 +1501,7 @@ const levels = [
             },
             {
                 id: 'room6',
-                x: 600, y: 420,
+                x: 580, y: 160,
                 roomName: "Archive Room",
                 npcs: [
                     { x: 70, y: 70, color: '#3d3d3d' },
@@ -1564,21 +1518,21 @@ const levels = [
         // Legacy vent platforms (for stage 1 initial load - Executive area)
         ventPlatforms: [
             // Ground level start
-            { x: 0, y: 550, w: 200, h: 50, isVent: true },
-            // First peek area (Executive Lounge)
-            { x: 100, y: 450, w: 120, h: 20, isVent: true },
-            // Descending platforms
-            { x: 250, y: 380, w: 100, h: 20, isVent: true },
+            { x: 0, y: 550, w: 250, h: 50, isVent: true },
+            // Jump up to first peek area (Executive Lounge)
+            { x: 80, y: 470, w: 140, h: 20, isVent: true },
+            // Climbing platforms - staggered for reachability
+            { x: 220, y: 400, w: 120, h: 20, isVent: true },
             // Second peek area (HR Office)
-            { x: 350, y: 310, w: 120, h: 20, isVent: true },
-            // More descent
-            { x: 500, y: 240, w: 100, h: 20, isVent: true },
+            { x: 350, y: 330, w: 140, h: 20, isVent: true },
+            // More climbing
+            { x: 480, y: 260, w: 120, h: 20, isVent: true },
             // Third peek area (Archive Room)
-            { x: 550, y: 170, w: 120, h: 20, isVent: true },
+            { x: 550, y: 190, w: 140, h: 20, isVent: true },
             // Final climb to door
-            { x: 650, y: 100, w: 100, h: 20, isVent: true },
+            { x: 650, y: 120, w: 120, h: 20, isVent: true },
             // Door platform at top
-            { x: 700, y: 40, w: 100, h: 20, isVent: true },
+            { x: 700, y: 50, w: 100, h: 20, isVent: true },
         ],
         // Regular platforms (initial office view before entering vent)
         platforms: [
