@@ -4,7 +4,7 @@
 
 // Build Info (for debugging - set DEBUG_MODE to false for release)
 const BUILD_VERSION = "0.1.0";
-const BUILD_NUMBER = 32;
+const BUILD_NUMBER = 33;
 const BUILD_DATE = "2026-01-03";
 const DEBUG_MODE = true;
 
@@ -1765,6 +1765,67 @@ let isPeeking = false;
 let peekDialoguePhase = 0;
 let peekDialogueTimer = 0;
 
+// Level 8 Stage 2 - Ping dialogue state
+let stage2IntroTriggered = false;
+let stage2IntroActive = false;
+let stage2IntroPhase = 0;
+let stage2IntroTimer = 0;
+let stage2ChoiceActive = false;
+let stage2SelectedChoice = 0;
+let stage2ChoicesUsed = [false, false, false, false]; // Track which choices have been used
+let stage2ResponseActive = false;
+let stage2ResponsePhase = 0;
+let stage2ResponseTimer = 0;
+
+// Stage 2 intro messages
+const stage2IntroMessages = [
+    { speaker: "You", text: "Ping...?" },
+    { speaker: "You", text: "Is that your name?" },
+    { speaker: "Ping", text: "..." },
+    { speaker: "Ping", text: "Yeah..." },
+    { speaker: "Ping", text: "That's the name of the title..." }
+];
+
+// Stage 2 choice options
+const stage2Choices = [
+    { text: "What's the contract all about?", key: "1" },
+    { text: "True purpose...?", key: "2" },
+    { text: "Was that the new guy back there?", key: "3" },
+    { text: "What did they mean by what you are?", key: "4" }
+];
+
+// Stage 2 choice responses
+const stage2Choice1Responses = [
+    { speaker: "Ping", text: "..." },
+    { speaker: "Ping", text: "The contract...?" },
+    { speaker: "Ping", text: "..." },
+    { speaker: "Ping", text: "I... can't say." },
+    { speaker: "You", text: "..." }
+];
+
+const stage2Choice2Responses = [
+    { speaker: "Ping", text: "..." },
+    { speaker: "You", text: "..." }
+];
+
+const stage2Choice3Responses = [
+    { speaker: "Ping", text: "..." },
+    { speaker: "Ping", text: "Their words. Not mine." },
+    { speaker: "You", text: "Sorry..." },
+    { speaker: "Ping", text: "..." }
+];
+
+const stage2Choice4Responses = [
+    { speaker: "Ping", text: "..." },
+    { speaker: "Ping", text: "I've... never seen them before." },
+    { speaker: "Ping", text: "..." },
+    { speaker: "You", text: "You must've! You've been here the longest!" },
+    { speaker: "Ping", text: "..." },
+    { speaker: "Ping", text: "You're right." },
+    { speaker: "Ping", text: "I should." },
+    { speaker: "Ping", text: "But I don't." }
+];
+
 function loadLevel(levelIndex) {
     if (levelIndex >= levels.length) {
         // Game complete - restart from level 1
@@ -1931,6 +1992,15 @@ function loadStage2() {
     player.y = level.stage2.playerStart.y;
     player.velX = 0;
     player.velY = 0;
+
+    // Trigger Stage 2 Ping dialogue for office levels
+    if (level.isOfficeLevel && !stage2IntroTriggered) {
+        stage2IntroTriggered = true;
+        stage2IntroActive = true;
+        stage2IntroPhase = 0;
+        stage2IntroTimer = 0;
+        stage2ChoicesUsed = [false, false, false, false];
+    }
 }
 
 // Add level complete sound to SoundManager
@@ -2324,6 +2394,14 @@ function gameLoop() {
         level10IntroTimer++;
     }
 
+    // Handle Stage 2 Ping dialogue
+    if (stage2IntroActive) {
+        stage2IntroTimer++;
+    }
+    if (stage2ResponseActive) {
+        stage2ResponseTimer++;
+    }
+
     // Handle Level 10 peek dialogue
     if (isPeeking && currentPeekPoint) {
         peekDialogueTimer++;
@@ -2384,7 +2462,8 @@ function gameLoop() {
         const isInDialogue = narratorActive || dialogueChoiceActive || choiceMessagePhase > 0 ||
             level8NarratorActive || level9NarratorActive || level9PlayerDialogueActive ||
             level9SecondCallActive || level9ChoiceActive || level9ChoiceResponsePhase > 0 ||
-            level10IntroActive || isPeeking;
+            level10IntroActive || isPeeking ||
+            stage2IntroActive || stage2ChoiceActive || stage2ResponseActive;
         if (!isInDialogue) {
             player.update(platforms);
 
@@ -2439,6 +2518,25 @@ function gameLoop() {
         if (level10IntroActive && level10IntroPhase < levels[currentLevel]?.introDialogue?.length) {
             const message = levels[currentLevel].introDialogue[level10IntroPhase];
             if (message && message.speaker === '???') {
+                pingIsTalking = true;
+            }
+        }
+
+        // Stage 2 intro dialogue (check if current message is Ping)
+        if (stage2IntroActive && stage2IntroPhase < stage2IntroMessages.length) {
+            if (stage2IntroMessages[stage2IntroPhase].speaker === 'Ping') {
+                pingIsTalking = true;
+            }
+        }
+
+        // Stage 2 choice responses (check if current message is Ping)
+        if (stage2ResponseActive && stage2ResponsePhase > 0) {
+            const responses = stage2SelectedChoice === 0 ? stage2Choice1Responses :
+                             stage2SelectedChoice === 1 ? stage2Choice2Responses :
+                             stage2SelectedChoice === 2 ? stage2Choice3Responses :
+                             stage2Choice4Responses;
+            const responseIndex = stage2ResponsePhase - 1;
+            if (responses && responseIndex < responses.length && responses[responseIndex].speaker === 'Ping') {
                 pingIsTalking = true;
             }
         }
@@ -3133,6 +3231,30 @@ function drawPhoneInteraction() {
         }
     }
 
+    // Draw Stage 2 Ping intro dialogue
+    if (stage2IntroActive && stage2IntroPhase < stage2IntroMessages.length) {
+        const message = stage2IntroMessages[stage2IntroPhase];
+        drawDialogueBox(message.speaker, message.text, stage2IntroTimer);
+    }
+
+    // Draw Stage 2 choice selection (4 options, show remaining)
+    if (stage2ChoiceActive) {
+        drawStage2Choices();
+    }
+
+    // Draw Stage 2 choice responses
+    if (stage2ResponseActive && stage2ResponsePhase > 0) {
+        const responses = stage2SelectedChoice === 0 ? stage2Choice1Responses :
+                         stage2SelectedChoice === 1 ? stage2Choice2Responses :
+                         stage2SelectedChoice === 2 ? stage2Choice3Responses :
+                         stage2Choice4Responses;
+
+        if (stage2ResponsePhase <= responses.length) {
+            const response = responses[stage2ResponsePhase - 1];
+            drawDialogueBox(response.speaker, response.text, stage2ResponseTimer);
+        }
+    }
+
     // Draw Level 10 peek view (overlays everything)
     // Player must press Enter/E to advance peek dialogue
     if (isPeeking && currentPeekPoint) {
@@ -3188,6 +3310,67 @@ function drawLevel9Choices() {
     ctx.font = '12px "Segoe UI", sans-serif';
     ctx.textAlign = 'right';
     ctx.fillText('Use 1/2/3 or Arrow keys, Enter to select', boxX + boxWidth - 15, boxY + boxHeight - 8);
+    ctx.textAlign = 'left';
+}
+
+// Draw Stage 2 four-choice dialogue (with used choices grayed out)
+function drawStage2Choices() {
+    const boxWidth = 620;
+    const boxHeight = 170;
+    const boxX = (canvas.width - boxWidth) / 2;
+    const boxY = canvas.height - boxHeight - 20;
+
+    // Semi-transparent background
+    ctx.fillStyle = 'rgba(20, 20, 40, 0.95)';
+    ctx.beginPath();
+    ctx.roundRect(boxX, boxY, boxWidth, boxHeight, 8);
+    ctx.fill();
+
+    // Border
+    ctx.strokeStyle = '#e94560';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.roundRect(boxX, boxY, boxWidth, boxHeight, 8);
+    ctx.stroke();
+
+    // Title
+    ctx.fillStyle = '#888888';
+    ctx.font = 'bold 14px "Segoe UI", sans-serif';
+    ctx.fillText('Choose your response:', boxX + 20, boxY + 25);
+
+    // Count remaining choices
+    const remainingCount = stage2ChoicesUsed.filter(used => !used).length;
+
+    // Draw choices
+    for (let i = 0; i < stage2Choices.length; i++) {
+        const choice = stage2Choices[i];
+        const choiceY = boxY + 50 + (i * 28);
+        const isUsed = stage2ChoicesUsed[i];
+        const isSelected = i === stage2SelectedChoice;
+
+        // Selection indicator (only for unused choices)
+        if (isSelected && !isUsed) {
+            ctx.fillStyle = 'rgba(233, 69, 96, 0.3)';
+            ctx.fillRect(boxX + 15, choiceY - 18, boxWidth - 30, 26);
+        }
+
+        // Choice text
+        if (isUsed) {
+            ctx.fillStyle = '#444444'; // Gray out used choices
+            ctx.font = '16px "Segoe UI", sans-serif';
+            ctx.fillText(`${choice.key}. ${choice.text} ✓`, boxX + 25, choiceY);
+        } else {
+            ctx.fillStyle = isSelected ? '#e94560' : '#ffffff';
+            ctx.font = isSelected ? 'bold 16px "Segoe UI", sans-serif' : '16px "Segoe UI", sans-serif';
+            ctx.fillText(`${choice.key}. ${choice.text}`, boxX + 25, choiceY);
+        }
+    }
+
+    // Instructions
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+    ctx.font = '12px "Segoe UI", sans-serif';
+    ctx.textAlign = 'right';
+    ctx.fillText(`${remainingCount} remaining - Use 1/2/3/4 or Arrow keys, Enter to select`, boxX + boxWidth - 15, boxY + boxHeight - 8);
     ctx.textAlign = 'left';
 }
 
@@ -3420,6 +3603,50 @@ function advanceDialogue() {
             }
         }
         return true;
+    } else if (stage2IntroActive) {
+        stage2IntroPhase++;
+        stage2IntroTimer = 0;
+        if (stage2IntroPhase >= stage2IntroMessages.length) {
+            stage2IntroActive = false;
+            stage2ChoiceActive = true;
+            stage2SelectedChoice = 0;
+            // Find first unused choice
+            for (let i = 0; i < 4; i++) {
+                if (!stage2ChoicesUsed[i]) {
+                    stage2SelectedChoice = i;
+                    break;
+                }
+            }
+        }
+        return true;
+    } else if (stage2ResponseActive) {
+        const responses = stage2SelectedChoice === 0 ? stage2Choice1Responses :
+                         stage2SelectedChoice === 1 ? stage2Choice2Responses :
+                         stage2SelectedChoice === 2 ? stage2Choice3Responses :
+                         stage2Choice4Responses;
+        stage2ResponsePhase++;
+        stage2ResponseTimer = 0;
+        if (stage2ResponsePhase > responses.length) {
+            stage2ResponsePhase = 0;
+            stage2ResponseActive = false;
+            // Check if all choices have been used
+            const allUsed = stage2ChoicesUsed.every(used => used);
+            if (allUsed) {
+                // Dialogue complete, player can continue
+                stage2ChoiceActive = false;
+            } else {
+                // Show choices again
+                stage2ChoiceActive = true;
+                // Find first unused choice
+                for (let i = 0; i < 4; i++) {
+                    if (!stage2ChoicesUsed[i]) {
+                        stage2SelectedChoice = i;
+                        break;
+                    }
+                }
+            }
+        }
+        return true;
     } else if (isPeeking && currentPeekPoint) {
         if (peekDialoguePhase < currentPeekPoint.dialogue.length) {
             peekDialoguePhase++;
@@ -3585,6 +3812,15 @@ document.addEventListener('keydown', (e) => {
             } else if (level9ChoiceActive && level9ChoiceResponsePhase === 0) {
                 level9SelectedChoice = Math.max(0, level9SelectedChoice - 1);
                 e.preventDefault();
+            } else if (stage2ChoiceActive && !stage2ResponseActive) {
+                // Find previous unused choice
+                for (let i = stage2SelectedChoice - 1; i >= 0; i--) {
+                    if (!stage2ChoicesUsed[i]) {
+                        stage2SelectedChoice = i;
+                        break;
+                    }
+                }
+                e.preventDefault();
             }
             break;
         case 'arrowdown':
@@ -3593,6 +3829,15 @@ document.addEventListener('keydown', (e) => {
                 e.preventDefault();
             } else if (level9ChoiceActive && level9ChoiceResponsePhase === 0) {
                 level9SelectedChoice = Math.min(2, level9SelectedChoice + 1);
+                e.preventDefault();
+            } else if (stage2ChoiceActive && !stage2ResponseActive) {
+                // Find next unused choice
+                for (let i = stage2SelectedChoice + 1; i < 4; i++) {
+                    if (!stage2ChoicesUsed[i]) {
+                        stage2SelectedChoice = i;
+                        break;
+                    }
+                }
                 e.preventDefault();
             }
             break;
@@ -3606,6 +3851,13 @@ document.addEventListener('keydown', (e) => {
                 level9ChoiceResponsePhase = 1;
                 level9ChoiceResponseTimer = 0;
                 e.preventDefault();
+            } else if (stage2ChoiceActive && !stage2ResponseActive && !stage2ChoicesUsed[stage2SelectedChoice]) {
+                // Select this choice
+                stage2ChoicesUsed[stage2SelectedChoice] = true;
+                stage2ResponseActive = true;
+                stage2ResponsePhase = 1;
+                stage2ResponseTimer = 0;
+                e.preventDefault();
             }
             break;
         // Number keys - dialogue choices take priority, then level select
@@ -3618,7 +3870,13 @@ document.addEventListener('keydown', (e) => {
                 level9SelectedChoice = 0;
                 level9ChoiceResponsePhase = 1;
                 level9ChoiceResponseTimer = 0;
-            } else if (gameState === 'playing' && !dialogueChoiceActive && !level9ChoiceActive) {
+            } else if (stage2ChoiceActive && !stage2ResponseActive && !stage2ChoicesUsed[0]) {
+                stage2SelectedChoice = 0;
+                stage2ChoicesUsed[0] = true;
+                stage2ResponseActive = true;
+                stage2ResponsePhase = 1;
+                stage2ResponseTimer = 0;
+            } else if (gameState === 'playing' && !dialogueChoiceActive && !level9ChoiceActive && !stage2ChoiceActive) {
                 currentLevel = 0;
                 loadLevel(currentLevel);
             }
@@ -3632,7 +3890,13 @@ document.addEventListener('keydown', (e) => {
                 level9SelectedChoice = 1;
                 level9ChoiceResponsePhase = 1;
                 level9ChoiceResponseTimer = 0;
-            } else if (gameState === 'playing' && !dialogueChoiceActive && !level9ChoiceActive) {
+            } else if (stage2ChoiceActive && !stage2ResponseActive && !stage2ChoicesUsed[1]) {
+                stage2SelectedChoice = 1;
+                stage2ChoicesUsed[1] = true;
+                stage2ResponseActive = true;
+                stage2ResponsePhase = 1;
+                stage2ResponseTimer = 0;
+            } else if (gameState === 'playing' && !dialogueChoiceActive && !level9ChoiceActive && !stage2ChoiceActive) {
                 currentLevel = 1;
                 loadLevel(currentLevel);
             }
@@ -3642,18 +3906,35 @@ document.addEventListener('keydown', (e) => {
                 level9SelectedChoice = 2;
                 level9ChoiceResponsePhase = 1;
                 level9ChoiceResponseTimer = 0;
-            } else if (gameState === 'playing' && !dialogueChoiceActive && !level9ChoiceActive) {
+            } else if (stage2ChoiceActive && !stage2ResponseActive && !stage2ChoicesUsed[2]) {
+                stage2SelectedChoice = 2;
+                stage2ChoicesUsed[2] = true;
+                stage2ResponseActive = true;
+                stage2ResponsePhase = 1;
+                stage2ResponseTimer = 0;
+            } else if (gameState === 'playing' && !dialogueChoiceActive && !level9ChoiceActive && !stage2ChoiceActive) {
                 currentLevel = 2;
                 loadLevel(currentLevel);
             }
             break;
         case '4':
+            if (stage2ChoiceActive && !stage2ResponseActive && !stage2ChoicesUsed[3]) {
+                stage2SelectedChoice = 3;
+                stage2ChoicesUsed[3] = true;
+                stage2ResponseActive = true;
+                stage2ResponsePhase = 1;
+                stage2ResponseTimer = 0;
+            } else if (gameState === 'playing' && !dialogueChoiceActive && !level9ChoiceActive && !stage2ChoiceActive) {
+                currentLevel = 3;
+                loadLevel(currentLevel);
+            }
+            break;
         case '5':
         case '6':
         case '7':
         case '8':
         case '9':
-            if (gameState === 'playing' && !dialogueChoiceActive && !level9ChoiceActive) {
+            if (gameState === 'playing' && !dialogueChoiceActive && !level9ChoiceActive && !stage2ChoiceActive) {
                 const levelNum = parseInt(e.key) - 1;
                 if (levelNum < levels.length) {
                     currentLevel = levelNum;
