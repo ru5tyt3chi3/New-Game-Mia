@@ -4,7 +4,7 @@
 
 // Build Info (for debugging - set DEBUG_MODE to false for release)
 const BUILD_VERSION = "0.1.0";
-const BUILD_NUMBER = 33;
+const BUILD_NUMBER = 34;
 const BUILD_DATE = "2026-01-03";
 const DEBUG_MODE = true;
 
@@ -1776,6 +1776,7 @@ let stage2ChoicesUsed = [false, false, false, false]; // Track which choices hav
 let stage2ResponseActive = false;
 let stage2ResponsePhase = 0;
 let stage2ResponseTimer = 0;
+let stage2VentsViewed = {}; // Track which Stage 2 vents have been viewed (by id)
 
 // Stage 2 intro messages
 const stage2IntroMessages = [
@@ -1993,12 +1994,13 @@ function loadStage2() {
     player.velX = 0;
     player.velY = 0;
 
-    // Trigger Stage 2 Ping dialogue for office levels
-    if (level.isOfficeLevel && !stage2IntroTriggered) {
-        stage2IntroTriggered = true;
-        stage2IntroActive = true;
-        stage2IntroPhase = 0;
-        stage2IntroTimer = 0;
+    // Reset Stage 2 vent tracking for office levels (dialogue triggers after all vents viewed)
+    if (level.isOfficeLevel) {
+        stage2VentsViewed = {};
+        stage2IntroTriggered = false;
+        stage2IntroActive = false;
+        stage2ChoiceActive = false;
+        stage2ResponseActive = false;
         stage2ChoicesUsed = [false, false, false, false];
     }
 }
@@ -3652,6 +3654,24 @@ function advanceDialogue() {
             peekDialoguePhase++;
             peekDialogueTimer = 0;
         } else {
+            // Mark this vent as viewed (for Stage 2 tracking)
+            const level = levels[currentLevel];
+            if (level && level.isOfficeLevel && currentStage === 2 && currentPeekPoint.id) {
+                stage2VentsViewed[currentPeekPoint.id] = true;
+
+                // Check if all Stage 2 vents have been viewed
+                if (level.stage2 && level.stage2.ventPeeks && !stage2IntroTriggered) {
+                    const allViewed = level.stage2.ventPeeks.every(vp => stage2VentsViewed[vp.id]);
+                    if (allViewed) {
+                        // Trigger the Ping dialogue
+                        stage2IntroTriggered = true;
+                        stage2IntroActive = true;
+                        stage2IntroPhase = 0;
+                        stage2IntroTimer = 0;
+                    }
+                }
+            }
+
             isPeeking = false;
             currentPeekPoint = null;
         }
