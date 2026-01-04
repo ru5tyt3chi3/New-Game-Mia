@@ -4,7 +4,7 @@
 
 // Build Info (for debugging - set DEBUG_MODE to false for release)
 const BUILD_VERSION = "0.1.0";
-const BUILD_NUMBER = 31;
+const BUILD_NUMBER = 32;
 const BUILD_DATE = "2026-01-03";
 const DEBUG_MODE = true;
 
@@ -1778,15 +1778,14 @@ function loadLevel(levelIndex) {
     currentStage = 1;
 
     // Create platforms (with bloody flag support)
-    // For multi-stage levels, use stage1 platforms (or ventPlatforms for office levels)
+    // For office levels, start with regular platforms (office view), vent platforms load when entering vent
     let platformData;
-    if (level.hasStages) {
-        // For office levels with vent systems, use ventPlatforms
-        if (level.isOfficeLevel && level.stage1.ventPlatforms) {
-            platformData = level.stage1.ventPlatforms;
-        } else {
-            platformData = level.stage1.platforms;
-        }
+    if (level.isOfficeLevel && level.platforms) {
+        // Office level: start with office view platforms, not vent platforms
+        platformData = level.platforms;
+    } else if (level.hasStages) {
+        // Other staged levels: use stage1 platforms
+        platformData = level.stage1.platforms;
     } else {
         platformData = level.platforms;
     }
@@ -1810,7 +1809,8 @@ function loadLevel(levelIndex) {
     }
 
     // Create door if level has one
-    if (level.hasDoor && level.doorPosition) {
+    // For office levels, door is in the vent - don't create until player enters vent
+    if (level.hasDoor && level.doorPosition && !level.isOfficeLevel) {
         const doorState = level.doorUnlocked ? 'unlocked' : 'locked';
         levelDoor = new Door(level.doorPosition.x, level.doorPosition.y, doorState);
     } else {
@@ -3521,6 +3521,11 @@ document.addEventListener('keydown', (e) => {
                     platforms = level.ventPlatforms.map(p =>
                         new Platform(p.x, p.y, p.w, p.h, '#2a2a2a', false)
                     );
+                    // Create door in vent (for office levels)
+                    if (level.hasDoor && level.doorPosition) {
+                        const doorState = level.doorUnlocked ? 'unlocked' : 'locked';
+                        levelDoor = new Door(level.doorPosition.x, level.doorPosition.y, doorState);
+                    }
                     player.x = 50;
                     player.y = 480;
                 }
