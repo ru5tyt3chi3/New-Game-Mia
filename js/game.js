@@ -2504,6 +2504,7 @@ function gameLoop() {
         if (!stage2CountdownStarted && stage2AlarmTimer >= stage2AlarmDelay) {
             stage2CountdownStarted = true;
             stage2AlarmTimer = 0; // Reset timer for countdown
+            sound.playAlarm(); // Start alarm when countdown begins
         }
 
         // Countdown every 60 frames (1 second) - only after delay
@@ -3485,15 +3486,15 @@ function drawPhoneInteraction() {
         drawDialogueBox(message.speaker, message.text, stage2LandingTimer);
     }
 
-    // Draw Level 8 Stage 2 alarm sequence effects
-    if (stage2AlarmActive) {
+    // Draw Level 8 Stage 2 alarm sequence effects (only after countdown starts)
+    if (stage2AlarmActive && stage2CountdownStarted) {
         // Flashing red lights overlay
         const flashIntensity = Math.sin(stage2RedFlashTimer * 0.15) * 0.5 + 0.5;
         ctx.fillStyle = `rgba(255, 0, 0, ${flashIntensity * 0.3})`;
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-        // Countdown display (only show after delay period)
-        if (stage2CountdownStarted && stage2Countdown > 0) {
+        // Countdown display
+        if (stage2Countdown > 0) {
             ctx.fillStyle = '#ff0000';
             ctx.font = 'bold 72px "Segoe UI", sans-serif';
             ctx.textAlign = 'center';
@@ -3949,11 +3950,10 @@ function advanceDialogue() {
         stage2LandingTimer = 0;
         if (stage2LandingPhase >= stage2LandingMessages.length) {
             stage2LandingActive = false;
-            // Trigger alarm sequence
+            // Start alarm sequence (alarm sound plays when countdown starts)
             stage2AlarmActive = true;
             stage2AlarmTimer = 0;
             stage2Countdown = 10;
-            sound.playAlarm();
         }
         return true;
     } else if (isPeeking && currentPeekPoint) {
