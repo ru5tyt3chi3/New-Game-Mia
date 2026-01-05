@@ -2479,11 +2479,13 @@ function gameLoop() {
                 player.velX = 0;
             }
 
-            // Level 8 Stage 2 landing detection
+            // Level 8 Stage 2 landing detection (only on bottom platform at y: 560)
             if (currentLevel === 7 && currentStage === 2 && !stage2LandingTriggered) {
-                // Check if player was in the air and is now on the ground (bottom platform at y: 560)
-                if (stage2WasInAir && player.isGrounded) {
-                    // Player just landed - trigger thump and dialogue
+                // Check if player was in the air and landed on the bottom platform
+                // Bottom platform is at y: 560, so player y should be around 520+ when standing on it
+                const onBottomPlatform = player.y > 480;
+                if (stage2WasInAir && player.isGrounded && onBottomPlatform) {
+                    // Player just landed on bottom platform - trigger thump and dialogue
                     stage2LandingTriggered = true;
                     stage2LandingActive = true;
                     stage2LandingPhase = 0;
