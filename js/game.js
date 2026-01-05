@@ -1452,8 +1452,8 @@ const levels = [
             ventPlatforms: [
                 // Starting platform at top (player spawns on this)
                 { x: 300, y: 120, w: 200, h: 20, isVent: true },
-                // Bottom platform with goal (long drop down)
-                { x: 200, y: 560, w: 600, h: 40, isVent: true },
+                // Bottom platform (extends full screen width)
+                { x: 0, y: 560, w: 800, h: 40, isVent: true },
             ]
         },
         // Legacy vent peeks (for stage 1 initial load - Executive area)
@@ -1742,11 +1742,10 @@ const stage2LandingMessages = [
 // Level 8 Stage 2 - Alarm sequence state (after landing dialogue)
 let stage2AlarmActive = false;
 let stage2AlarmTimer = 0;
+let stage2AlarmDelay = 600; // 10 seconds delay (60fps * 10) before countdown starts
+let stage2CountdownStarted = false;
 let stage2Countdown = 10;
 let stage2RedFlashTimer = 0;
-let stage2HideObjectiveActive = false;
-let stage2HideObjectiveTimer = 0;
-let stage2HideObjectivePhase = 0; // 0 = center popup, 1 = shrinking to top
 let stage2ChaserActive = false;
 let stage2Chaser = null;
 let stage2CaughtActive = false;
@@ -1962,11 +1961,10 @@ function loadStage2() {
         // Reset alarm sequence state
         stage2AlarmActive = false;
         stage2AlarmTimer = 0;
+        stage2AlarmDelay = 600; // 10 seconds
+        stage2CountdownStarted = false;
         stage2Countdown = 10;
         stage2RedFlashTimer = 0;
-        stage2HideObjectiveActive = false;
-        stage2HideObjectiveTimer = 0;
-        stage2HideObjectivePhase = 0;
         stage2ChaserActive = false;
         stage2Chaser = null;
         stage2CaughtActive = false;
@@ -2502,8 +2500,14 @@ function gameLoop() {
         stage2AlarmTimer++;
         stage2RedFlashTimer++;
 
-        // Countdown every 60 frames (1 second)
-        if (stage2AlarmTimer % 60 === 0 && stage2Countdown > 0) {
+        // Wait for delay before starting countdown
+        if (!stage2CountdownStarted && stage2AlarmTimer >= stage2AlarmDelay) {
+            stage2CountdownStarted = true;
+            stage2AlarmTimer = 0; // Reset timer for countdown
+        }
+
+        // Countdown every 60 frames (1 second) - only after delay
+        if (stage2CountdownStarted && stage2AlarmTimer % 60 === 0 && stage2Countdown > 0) {
             stage2Countdown--;
 
             // When countdown reaches 0, spawn chaser
@@ -2547,6 +2551,27 @@ function gameLoop() {
                     stage2Chaser.x += stage2Chaser.speed;
                 } else if (player.x < stage2Chaser.x) {
                     stage2Chaser.x -= stage2Chaser.speed;
+                }
+
+                // Smart behavior: if stuck on top platform and player is below, jump down
+                // Top platform is at y: 120, bottom at y: 560
+                const chaserOnTopPlatform = stage2Chaser.y < 200;
+                const playerBelow = player.y > 200;
+                if (chaserOnTopPlatform && playerBelow) {
+                    // Walk off the platform edge to fall down
+                    // Move towards nearest edge
+                    const topPlatformLeft = 300;
+                    const topPlatformRight = 500;
+                    const distToLeft = stage2Chaser.x - topPlatformLeft;
+                    const distToRight = topPlatformRight - stage2Chaser.x;
+
+                    if (distToLeft < distToRight) {
+                        // Go left off the platform
+                        stage2Chaser.x -= stage2Chaser.speed;
+                    } else {
+                        // Go right off the platform
+                        stage2Chaser.x += stage2Chaser.speed;
+                    }
                 }
             }
 
@@ -2750,7 +2775,10 @@ function gameLoop() {
 
         player.isTalking = pingIsTalking;
 
-        player.draw();
+        // Don't draw normal player during faint animation (custom faint drawing handles it)
+        if (!stage2CaughtActive) {
+            player.draw();
+        }
 
         // Check key collision
         if (levelKey && !levelKey.collected) {
@@ -3464,8 +3492,8 @@ function drawPhoneInteraction() {
         ctx.fillStyle = `rgba(255, 0, 0, ${flashIntensity * 0.3})`;
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-        // Countdown display
-        if (stage2Countdown > 0) {
+        // Countdown display (only show after delay period)
+        if (stage2CountdownStarted && stage2Countdown > 0) {
             ctx.fillStyle = '#ff0000';
             ctx.font = 'bold 72px "Segoe UI", sans-serif';
             ctx.textAlign = 'center';
