@@ -1739,6 +1739,21 @@ const stage2LandingMessages = [
     { speaker: "Worker 2", text: "...Maybe it was nothing." }
 ];
 
+// Level 8 Stage 2 - Alarm sequence state (after landing dialogue)
+let stage2AlarmActive = false;
+let stage2AlarmTimer = 0;
+let stage2Countdown = 10;
+let stage2RedFlashTimer = 0;
+let stage2HideObjectiveActive = false;
+let stage2HideObjectiveTimer = 0;
+let stage2HideObjectivePhase = 0; // 0 = center popup, 1 = shrinking to top
+let stage2ChaserActive = false;
+let stage2Chaser = null;
+let stage2CaughtActive = false;
+let stage2CaughtTimer = 0;
+let stage2FaintPhase = 0;
+let stage2FadeToBlack = 0; // 0 to 1 for fade progress
+
 // Stage 2 intro messages
 const stage2IntroMessages = [
     { speaker: "You", text: "Ping...?" },
@@ -1944,6 +1959,20 @@ function loadStage2() {
         stage2LandingPhase = 0;
         stage2LandingTimer = 0;
         stage2WasInAir = true; // Player starts in the air (will fall)
+        // Reset alarm sequence state
+        stage2AlarmActive = false;
+        stage2AlarmTimer = 0;
+        stage2Countdown = 10;
+        stage2RedFlashTimer = 0;
+        stage2HideObjectiveActive = false;
+        stage2HideObjectiveTimer = 0;
+        stage2HideObjectivePhase = 0;
+        stage2ChaserActive = false;
+        stage2Chaser = null;
+        stage2CaughtActive = false;
+        stage2CaughtTimer = 0;
+        stage2FaintPhase = 0;
+        stage2FadeToBlack = 0;
     } else {
         goal = new Goal(level.stage2.goal.x, level.stage2.goal.y, level.hasBlood);
     }
@@ -2023,6 +2052,70 @@ SoundManager.prototype.playThump = function() {
     noiseGain.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + noiseLength);
 
     noise.start(this.audioContext.currentTime);
+};
+
+// Alarm sound for Level 8 chase sequence
+SoundManager.prototype.playAlarm = function() {
+    if (this.muted || !this.initialized) return;
+
+    // Store oscillator reference so we can stop it later
+    if (this.alarmOsc) {
+        this.alarmOsc.stop();
+    }
+
+    const osc = this.audioContext.createOscillator();
+    const gain = this.audioContext.createGain();
+
+    osc.connect(gain);
+    gain.connect(this.sfxGain);
+
+    osc.type = 'square';
+    // Alternating high-low alarm pattern
+    osc.frequency.setValueAtTime(880, this.audioContext.currentTime);
+
+    // Create alarm pattern that loops
+    const patternDuration = 0.5;
+    for (let i = 0; i < 30; i++) { // 15 seconds of alarm
+        const t = this.audioContext.currentTime + i * patternDuration;
+        osc.frequency.setValueAtTime(880, t);
+        osc.frequency.setValueAtTime(440, t + patternDuration / 2);
+    }
+
+    gain.gain.setValueAtTime(0.25, this.audioContext.currentTime);
+
+    osc.start(this.audioContext.currentTime);
+    osc.stop(this.audioContext.currentTime + 15);
+    this.alarmOsc = osc;
+};
+
+// Stop alarm sound
+SoundManager.prototype.stopAlarm = function() {
+    if (this.alarmOsc) {
+        try {
+            this.alarmOsc.stop();
+        } catch (e) {}
+        this.alarmOsc = null;
+    }
+};
+
+// Countdown beep
+SoundManager.prototype.playCountdownBeep = function(isLast = false) {
+    if (this.muted || !this.initialized) return;
+
+    const osc = this.audioContext.createOscillator();
+    const gain = this.audioContext.createGain();
+
+    osc.connect(gain);
+    gain.connect(this.sfxGain);
+
+    osc.type = 'sine';
+    osc.frequency.value = isLast ? 880 : 440;
+
+    gain.gain.setValueAtTime(0.4, this.audioContext.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + 0.15);
+
+    osc.start(this.audioContext.currentTime);
+    osc.stop(this.audioContext.currentTime + 0.15);
 };
 
 // Don't load level immediately - start in menu state
@@ -2403,6 +2496,116 @@ function gameLoop() {
         stage2LandingTimer++;
     }
 
+    // Handle Level 8 Stage 2 alarm sequence
+    if (stage2AlarmActive) {
+        stage2AlarmTimer++;
+        stage2RedFlashTimer++;
+
+        // Countdown every 60 frames (1 second)
+        if (stage2AlarmTimer % 60 === 0 && stage2Countdown > 0) {
+            stage2Countdown--;
+            sound.playCountdownBeep(stage2Countdown === 0);
+
+            // When countdown reaches 0, spawn chaser
+            if (stage2Countdown === 0) {
+                stage2ChaserActive = true;
+                stage2Chaser = {
+                    x: 380, // Spawn on top platform
+                    y: 70,
+                    width: 30,
+                    height: 50,
+                    velY: 0,
+                    speed: 3.5, // Slightly faster than player (player is ~3)
+                    isGrounded: false
+                };
+            }
+        }
+
+        // HIDE objective animation
+        if (stage2HideObjectiveActive) {
+            stage2HideObjectiveTimer++;
+            // After 2 seconds, start shrinking to top
+            if (stage2HideObjectivePhase === 0 && stage2HideObjectiveTimer > 120) {
+                stage2HideObjectivePhase = 1;
+                stage2HideObjectiveTimer = 0;
+            }
+            // After shrinking animation completes
+            if (stage2HideObjectivePhase === 1 && stage2HideObjectiveTimer > 60) {
+                stage2HideObjectivePhase = 2; // Stay at top
+            }
+        }
+
+        // Update chaser movement
+        if (stage2ChaserActive && stage2Chaser && !stage2CaughtActive) {
+            // Apply gravity
+            stage2Chaser.velY += 0.5;
+            stage2Chaser.y += stage2Chaser.velY;
+
+            // Check platform collisions
+            stage2Chaser.isGrounded = false;
+            for (const platform of platforms) {
+                if (stage2Chaser.velY >= 0 &&
+                    stage2Chaser.x + stage2Chaser.width > platform.x &&
+                    stage2Chaser.x < platform.x + platform.width &&
+                    stage2Chaser.y + stage2Chaser.height >= platform.y &&
+                    stage2Chaser.y + stage2Chaser.height <= platform.y + platform.height + stage2Chaser.velY) {
+                    stage2Chaser.y = platform.y - stage2Chaser.height;
+                    stage2Chaser.velY = 0;
+                    stage2Chaser.isGrounded = true;
+                }
+            }
+
+            // Move towards player horizontally
+            if (stage2Chaser.isGrounded) {
+                if (player.x > stage2Chaser.x) {
+                    stage2Chaser.x += stage2Chaser.speed;
+                } else if (player.x < stage2Chaser.x) {
+                    stage2Chaser.x -= stage2Chaser.speed;
+                }
+            }
+
+            // Check if caught player
+            if (stage2Chaser.x + stage2Chaser.width > player.x &&
+                stage2Chaser.x < player.x + player.width &&
+                stage2Chaser.y + stage2Chaser.height > player.y &&
+                stage2Chaser.y < player.y + player.height) {
+                // Caught!
+                stage2CaughtActive = true;
+                stage2CaughtTimer = 0;
+                stage2FaintPhase = 0;
+                sound.stopAlarm();
+            }
+        }
+    }
+
+    // Handle caught/faint sequence
+    if (stage2CaughtActive) {
+        stage2CaughtTimer++;
+
+        // Faint animation phases
+        if (stage2FaintPhase === 0 && stage2CaughtTimer > 60) {
+            stage2FaintPhase = 1; // Start fade to black
+        }
+
+        // Fade to black
+        if (stage2FaintPhase === 1) {
+            stage2FadeToBlack += 0.02;
+            if (stage2FadeToBlack >= 1) {
+                stage2FadeToBlack = 1;
+                stage2FaintPhase = 2;
+                stage2CaughtTimer = 0;
+            }
+        }
+
+        // After fully black, complete level
+        if (stage2FaintPhase === 2 && stage2CaughtTimer > 60) {
+            stage2CaughtActive = false;
+            stage2AlarmActive = false;
+            levelComplete = true;
+            sound.playLevelComplete();
+        }
+    }
+
     // Handle Level 10 peek dialogue
     if (isPeeking && currentPeekPoint) {
         peekDialogueTimer++;
@@ -2464,7 +2667,8 @@ function gameLoop() {
             level8NarratorActive || level9NarratorActive || level9PlayerDialogueActive ||
             level9SecondCallActive || level9ChoiceActive || level9ChoiceResponsePhase > 0 ||
             level10IntroActive || isPeeking ||
-            stage2IntroActive || stage2ChoiceActive || stage2ResponseActive || stage2LandingActive;
+            stage2IntroActive || stage2ChoiceActive || stage2ResponseActive || stage2LandingActive ||
+            stage2CaughtActive;
         if (!isInDialogue) {
             player.update(platforms);
 
@@ -3267,6 +3471,92 @@ function drawPhoneInteraction() {
         drawDialogueBox(message.speaker, message.text, stage2LandingTimer);
     }
 
+    // Draw Level 8 Stage 2 alarm sequence effects
+    if (stage2AlarmActive) {
+        // Flashing red lights overlay
+        const flashIntensity = Math.sin(stage2RedFlashTimer * 0.15) * 0.5 + 0.5;
+        ctx.fillStyle = `rgba(255, 0, 0, ${flashIntensity * 0.3})`;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Countdown display
+        if (stage2Countdown > 0) {
+            ctx.fillStyle = '#ff0000';
+            ctx.font = 'bold 72px "Segoe UI", sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText(stage2Countdown.toString(), canvas.width / 2, canvas.height / 2 - 80);
+            ctx.textAlign = 'left';
+        }
+
+        // HIDE objective
+        if (stage2HideObjectiveActive) {
+            let objX = canvas.width / 2;
+            let objY = canvas.height / 2;
+            let objScale = 1;
+
+            if (stage2HideObjectivePhase === 0) {
+                // Center popup with pulse effect
+                objScale = 1 + Math.sin(stage2HideObjectiveTimer * 0.1) * 0.1;
+            } else if (stage2HideObjectivePhase === 1) {
+                // Shrinking to top
+                const progress = stage2HideObjectiveTimer / 60;
+                objX = canvas.width / 2;
+                objY = canvas.height / 2 - (canvas.height / 2 - 40) * progress;
+                objScale = 1 - progress * 0.6;
+            } else {
+                // At top
+                objY = 40;
+                objScale = 0.4;
+            }
+
+            ctx.fillStyle = '#ff0000';
+            ctx.font = `bold ${Math.floor(64 * objScale)}px "Segoe UI", sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.fillText('HIDE', objX, objY);
+
+            // Outline effect
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 2;
+            ctx.strokeText('HIDE', objX, objY);
+            ctx.textAlign = 'left';
+        }
+
+        // Draw chaser entity (office sprite)
+        if (stage2ChaserActive && stage2Chaser) {
+            // Body (dark office suit)
+            ctx.fillStyle = '#1a1a2e';
+            ctx.fillRect(stage2Chaser.x, stage2Chaser.y, stage2Chaser.width, stage2Chaser.height);
+
+            // Head
+            ctx.fillStyle = '#d4a574';
+            ctx.fillRect(stage2Chaser.x + 5, stage2Chaser.y - 15, 20, 20);
+
+            // Angry eyes
+            ctx.fillStyle = '#ff0000';
+            ctx.fillRect(stage2Chaser.x + 8, stage2Chaser.y - 10, 5, 4);
+            ctx.fillRect(stage2Chaser.x + 17, stage2Chaser.y - 10, 5, 4);
+        }
+    }
+
+    // Draw caught/faint effect
+    if (stage2CaughtActive) {
+        // Faint effect on player - wobble before falling
+        if (stage2FaintPhase === 0) {
+            const wobble = Math.sin(stage2CaughtTimer * 0.3) * 5;
+            ctx.save();
+            ctx.translate(player.x + player.width / 2, player.y + player.height / 2);
+            ctx.rotate(wobble * Math.PI / 180);
+            ctx.translate(-player.x - player.width / 2, -player.y - player.height / 2);
+            // Player will be drawn normally, this just adds wobble
+            ctx.restore();
+        }
+
+        // Fade to black overlay
+        if (stage2FadeToBlack > 0) {
+            ctx.fillStyle = `rgba(0, 0, 0, ${stage2FadeToBlack})`;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+        }
+    }
+
     // Draw Level 10 peek view (overlays everything)
     // Player must press Enter/E to advance peek dialogue
     if (isPeeking && currentPeekPoint) {
@@ -3663,9 +3953,14 @@ function advanceDialogue() {
         stage2LandingTimer = 0;
         if (stage2LandingPhase >= stage2LandingMessages.length) {
             stage2LandingActive = false;
-            // Level 8 complete after landing dialogue
-            levelComplete = true;
-            sound.playLevelComplete();
+            // Trigger alarm sequence instead of level complete
+            stage2AlarmActive = true;
+            stage2AlarmTimer = 0;
+            stage2Countdown = 10;
+            stage2HideObjectiveActive = true;
+            stage2HideObjectiveTimer = 0;
+            stage2HideObjectivePhase = 0;
+            sound.playAlarm();
         }
         return true;
     } else if (isPeeking && currentPeekPoint) {
