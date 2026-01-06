@@ -1755,18 +1755,11 @@ let stage2FadeToBlack = 0; // 0 to 1 for fade progress
 
 // Level 8 "Her" sequence state (after being caught)
 let herSequenceActive = false;
-let herSequencePhase = 0; // 0=black wait, 1=phone ring, 2=Her pre-answer, 3=post-answer dialogue
+let herSequencePhase = 0; // 0=black wait, 1=phone ring (wait for answer), 2=post-answer dialogue
 let herSequenceTimer = 0;
 let herDialoguePhase = 0;
 let herDialogueTimer = 0;
 let herPhoneAnswered = false;
-
-// Her sequence pre-answer dialogue (Her speaks before phone is answered)
-const herPreAnswerMessages = [
-    { speaker: "Her", text: "..." },
-    { speaker: "Her", text: "wake up..." },
-    { speaker: "Her", text: "WAKE UP." }
-];
 
 // Her sequence post-answer dialogue
 const herPostAnswerMessages = [
@@ -2746,27 +2739,16 @@ function gameLoop() {
 
         // Phase 0: Wait 5 seconds with black screen
         if (herSequencePhase === 0 && herSequenceTimer >= 300) {
-            herSequencePhase = 1; // Phone rings
+            herSequencePhase = 1; // Phone rings, wait for player to answer
             herSequenceTimer = 0;
             phoneRinging = true;
         }
 
-        // Phase 1: Phone ringing, Her speaks (before answering)
-        if (herSequencePhase === 1 && !herPhoneAnswered) {
-            // Her's pre-answer dialogue starts after 1 second of ringing
-            if (herSequenceTimer >= 60 && herDialoguePhase < herPreAnswerMessages.length) {
-                // Dialogue advances automatically every 2 seconds
-                if (herDialogueTimer >= 120) {
-                    herDialoguePhase++;
-                    herDialogueTimer = 0;
-                }
-            }
-        }
+        // Phase 1: Phone ringing - player must press E to answer (handled in advanceDialogue)
+        // No auto-advance, just wait for player input
 
-        // Phase 2: Post-answer dialogue (triggered by E key in key handler)
-        if (herSequencePhase === 2) {
-            // Dialogue advances with E key (handled in advanceDialogue)
-        }
+        // Phase 2: Post-answer dialogue - player presses E to advance each line
+        // No auto-timer, dialogue advances only on E press (handled in advanceDialogue)
 
         // Sequence complete
         if (herSequencePhase === 2 && herDialoguePhase >= herPostAnswerMessages.length) {
@@ -3718,21 +3700,71 @@ function drawPhoneInteraction() {
         ctx.fillStyle = '#000000';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-        // Phase 1: Phone ringing with Her's pre-answer dialogue at TOP
+        // Phase 1: Phone ringing - draw phone animation and E to answer
         if (herSequencePhase === 1 && !herPhoneAnswered) {
-            if (herDialoguePhase < herPreAnswerMessages.length) {
-                const message = herPreAnswerMessages[herDialoguePhase];
-                drawHerDialogueTop(message.speaker, message.text, herDialogueTimer);
+            // Draw ringing phone in center
+            const phoneX = canvas.width / 2 - 30;
+            const phoneY = canvas.height / 2 - 50;
+            const shake = Math.sin(herSequenceTimer * 0.5) * 5;
+
+            // Phone body
+            ctx.fillStyle = '#333333';
+            ctx.fillRect(phoneX + shake, phoneY, 60, 100);
+
+            // Screen
+            ctx.fillStyle = phoneRinging ? '#44ff44' : '#222222';
+            ctx.fillRect(phoneX + 5 + shake, phoneY + 10, 50, 60);
+
+            // Incoming call text
+            if (phoneRinging) {
+                ctx.fillStyle = '#000000';
+                ctx.font = 'bold 10px "Segoe UI", sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('INCOMING', phoneX + 30 + shake, phoneY + 35);
+                ctx.fillText('CALL', phoneX + 30 + shake, phoneY + 50);
+                ctx.textAlign = 'left';
             }
+
+            // Speaker/earpiece
+            ctx.fillStyle = '#222222';
+            ctx.fillRect(phoneX + 20 + shake, phoneY + 5, 20, 3);
+
+            // Home button
+            ctx.beginPath();
+            ctx.arc(phoneX + 30 + shake, phoneY + 85, 8, 0, Math.PI * 2);
+            ctx.fillStyle = '#222222';
+            ctx.fill();
+
+            // "Press E to answer" prompt
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 20px "Segoe UI", sans-serif';
+            ctx.textAlign = 'center';
+            const promptPulse = 0.5 + Math.sin(herSequenceTimer * 0.1) * 0.5;
+            ctx.globalAlpha = promptPulse;
+            ctx.fillText("Press 'E' to answer", canvas.width / 2, phoneY + 140);
+            ctx.globalAlpha = 1;
+            ctx.textAlign = 'left';
         }
 
-        // Phase 2: Post-answer dialogue
+        // Phase 2: Post-answer dialogue (player presses E to advance)
         if (herSequencePhase === 2 && herDialoguePhase < herPostAnswerMessages.length) {
             const message = herPostAnswerMessages[herDialoguePhase];
             if (message.speaker === 'Her') {
                 drawHerDialogueTop(message.speaker, message.text, herDialogueTimer, message.growl);
             } else {
                 drawHerSequenceDialogue(message.speaker, message.text, herDialogueTimer, message);
+            }
+
+            // Show "Press E to continue" after text is fully displayed
+            const textLength = message.text.length;
+            const typeSpeed = message.panicked ? 1 : (message.speaker === 'Her' ? 4 : 2);
+            const charsShown = Math.floor(herDialogueTimer / typeSpeed);
+            if (charsShown >= textLength) {
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+                ctx.font = '14px "Segoe UI", sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText("Press 'E' to continue", canvas.width / 2, canvas.height - 30);
+                ctx.textAlign = 'left';
             }
         }
     }
