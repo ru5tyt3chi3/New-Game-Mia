@@ -1723,6 +1723,8 @@ let stage2VentsViewed = {}; // Track which Stage 2 vents have been viewed (by id
 
 // Level 8 Stage 2 - Landing event state (when Ping lands on bottom platform)
 let stage2LandingTriggered = false;
+let stage2LandingDelayActive = false; // 5 second pause before dialogue
+let stage2LandingDelayTimer = 0;
 let stage2LandingActive = false;
 let stage2LandingPhase = 0;
 let stage2LandingTimer = 0;
@@ -1996,6 +1998,8 @@ function loadStage2() {
         goal = null;
         // Reset landing event state
         stage2LandingTriggered = false;
+        stage2LandingDelayActive = false;
+        stage2LandingDelayTimer = 0;
         stage2LandingActive = false;
         stage2LandingPhase = 0;
         stage2LandingTimer = 0;
@@ -2650,12 +2654,20 @@ function gameLoop() {
 
         // Update chaser movement
         if (stage2ChaserActive && stage2Chaser && !stage2CaughtActive) {
+            // Initialize stuck detection if not present
+            if (stage2Chaser.stuckTimer === undefined) {
+                stage2Chaser.stuckTimer = 0;
+                stage2Chaser.lastX = stage2Chaser.x;
+                stage2Chaser.lastY = stage2Chaser.y;
+            }
+
             // Apply gravity
             stage2Chaser.velY += 0.5;
             stage2Chaser.y += stage2Chaser.velY;
 
             // Check platform collisions
             stage2Chaser.isGrounded = false;
+            let currentPlatform = null;
             for (const platform of platforms) {
                 if (stage2Chaser.velY >= 0 &&
                     stage2Chaser.x + stage2Chaser.width > platform.x &&
@@ -2665,36 +2677,67 @@ function gameLoop() {
                     stage2Chaser.y = platform.y - stage2Chaser.height;
                     stage2Chaser.velY = 0;
                     stage2Chaser.isGrounded = true;
+                    currentPlatform = platform;
                 }
             }
 
-            // Move towards player horizontally
+            // Smart AI movement
             if (stage2Chaser.isGrounded) {
-                if (player.x > stage2Chaser.x) {
-                    stage2Chaser.x += stage2Chaser.speed;
-                } else if (player.x < stage2Chaser.x) {
-                    stage2Chaser.x -= stage2Chaser.speed;
-                }
-
-                // Smart behavior: if stuck on top platform and player is below, jump down
-                // Top platform is at y: 120, bottom at y: 560
+                const chaserCenterX = stage2Chaser.x + stage2Chaser.width / 2;
+                const playerCenterX = player.x + player.width / 2;
                 const chaserOnTopPlatform = stage2Chaser.y < 200;
-                const playerBelow = player.y > 200;
-                if (chaserOnTopPlatform && playerBelow) {
-                    // Walk off the platform edge to fall down
-                    // Move towards nearest edge
+                const playerOnBottomPlatform = player.y > 400;
+
+                // Check if stuck (not making progress)
+                const distMoved = Math.abs(stage2Chaser.x - stage2Chaser.lastX) + Math.abs(stage2Chaser.y - stage2Chaser.lastY);
+                if (distMoved < 1) {
+                    stage2Chaser.stuckTimer++;
+                } else {
+                    stage2Chaser.stuckTimer = 0;
+                }
+                stage2Chaser.lastX = stage2Chaser.x;
+                stage2Chaser.lastY = stage2Chaser.y;
+
+                // Priority 1: If on different vertical level than player, navigate to get to their level
+                if (chaserOnTopPlatform && playerOnBottomPlatform) {
+                    // Need to fall down - find the edge of current platform and walk off
                     const topPlatformLeft = 300;
                     const topPlatformRight = 500;
-                    const distToLeft = stage2Chaser.x - topPlatformLeft;
-                    const distToRight = topPlatformRight - stage2Chaser.x;
 
-                    if (distToLeft < distToRight) {
-                        // Go left off the platform
+                    // Move toward the edge that's closer to the player's X position
+                    if (playerCenterX < topPlatformLeft) {
+                        // Player is to the left, go off left edge
                         stage2Chaser.x -= stage2Chaser.speed;
-                    } else {
-                        // Go right off the platform
+                    } else if (playerCenterX > topPlatformRight) {
+                        // Player is to the right, go off right edge
                         stage2Chaser.x += stage2Chaser.speed;
+                    } else {
+                        // Player is directly below, go to nearest edge
+                        const distToLeft = chaserCenterX - topPlatformLeft;
+                        const distToRight = topPlatformRight - chaserCenterX;
+                        if (distToLeft <= distToRight) {
+                            stage2Chaser.x -= stage2Chaser.speed;
+                        } else {
+                            stage2Chaser.x += stage2Chaser.speed;
+                        }
                     }
+                } else {
+                    // Priority 2: Move horizontally toward player
+                    if (playerCenterX > chaserCenterX + 5) {
+                        stage2Chaser.x += stage2Chaser.speed;
+                    } else if (playerCenterX < chaserCenterX - 5) {
+                        stage2Chaser.x -= stage2Chaser.speed;
+                    }
+                }
+
+                // If stuck for too long, try to unstick by jumping or moving differently
+                if (stage2Chaser.stuckTimer > 60) {
+                    // Jump if grounded
+                    if (stage2Chaser.isGrounded) {
+                        stage2Chaser.velY = -10;
+                        stage2Chaser.isGrounded = false;
+                    }
+                    stage2Chaser.stuckTimer = 0;
                 }
             }
 
@@ -2856,15 +2899,25 @@ function gameLoop() {
                 // Bottom platform is at y: 560, so player y should be around 520+ when standing on it
                 const onBottomPlatform = player.y > 480;
                 if (stage2WasInAir && player.isGrounded && onBottomPlatform) {
-                    // Player just landed on bottom platform - trigger thump and dialogue
+                    // Player just landed on bottom platform - trigger thump and start 5 second delay
                     stage2LandingTriggered = true;
-                    stage2LandingActive = true;
-                    stage2LandingPhase = 0;
-                    stage2LandingTimer = 0;
+                    stage2LandingDelayActive = true;
+                    stage2LandingDelayTimer = 0;
                     sound.playThump();
                 }
                 // Track if player is in the air
                 stage2WasInAir = !player.isGrounded;
+            }
+
+            // Handle 5 second delay before confused dialogue
+            if (stage2LandingDelayActive) {
+                stage2LandingDelayTimer++;
+                if (stage2LandingDelayTimer >= 300) { // 5 seconds at 60fps
+                    stage2LandingDelayActive = false;
+                    stage2LandingActive = true;
+                    stage2LandingPhase = 0;
+                    stage2LandingTimer = 0;
+                }
             }
         }
 
