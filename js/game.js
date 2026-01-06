@@ -1753,6 +1753,42 @@ let stage2CaughtTimer = 0;
 let stage2FaintPhase = 0;
 let stage2FadeToBlack = 0; // 0 to 1 for fade progress
 
+// Level 8 "Her" sequence state (after being caught)
+let herSequenceActive = false;
+let herSequencePhase = 0; // 0=black wait, 1=phone ring, 2=Her pre-answer, 3=post-answer dialogue
+let herSequenceTimer = 0;
+let herDialoguePhase = 0;
+let herDialogueTimer = 0;
+let herPhoneAnswered = false;
+
+// Her sequence pre-answer dialogue (Her speaks before phone is answered)
+const herPreAnswerMessages = [
+    { speaker: "Her", text: "..." },
+    { speaker: "Her", text: "wake up..." },
+    { speaker: "Her", text: "WAKE UP." }
+];
+
+// Her sequence post-answer dialogue
+const herPostAnswerMessages = [
+    { speaker: "Narrator", text: "OH GOD!", panicked: true },
+    { speaker: "Narrator", text: "OH NO, OH NO, OH NO!", panicked: true },
+    { speaker: "Narrator", text: "YOU WOKE HER UP!", panicked: true },
+    { speaker: "Narrator", text: "YOU FORCED HER TO WAKE UP!", panicked: true },
+    { speaker: "Ping", text: "Damn it..." },
+    { speaker: "Ping", text: "Shut up!", bold: true, enlarged: true },
+    { speaker: "Ping", text: "Don't wake the player." },
+    { speaker: "Narrator", text: "..." },
+    { speaker: "Her", text: "Stop." },
+    { speaker: "Narrator/Ping", text: "!" },
+    { speaker: "Her", text: "I... need... my... food..." },
+    { speaker: "Her", text: "Bring... me... nutrition..." },
+    { speaker: "Narrator", text: "Yes, ma'am! Right away!" },
+    { speaker: "Her", text: "Hmmm...", growl: true },
+    { speaker: "Her", text: "Ping...?" },
+    { speaker: "Ping", text: "...?" },
+    { speaker: "Her", text: "You... are... a... bot..." }
+];
+
 // Stage 2 intro messages
 const stage2IntroMessages = [
     { speaker: "You", text: "Ping...?" },
@@ -2115,6 +2151,86 @@ SoundManager.prototype.playCountdownBeep = function(isLast = false) {
 
     osc.start(this.audioContext.currentTime);
     osc.stop(this.audioContext.currentTime + 0.15);
+};
+
+// Her's distorted whispery voice
+SoundManager.prototype.playHerVoice = function() {
+    if (this.muted || !this.initialized) return;
+
+    // Deep, distorted whisper effect
+    const osc = this.audioContext.createOscillator();
+    const gain = this.audioContext.createGain();
+    const filter = this.audioContext.createBiquadFilter();
+
+    osc.connect(filter);
+    filter.connect(gain);
+    gain.connect(this.sfxGain);
+
+    osc.type = 'sawtooth';
+    osc.frequency.value = 80 + Math.random() * 40; // Deep rumble
+
+    filter.type = 'lowpass';
+    filter.frequency.value = 300;
+
+    gain.gain.setValueAtTime(0.15, this.audioContext.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + 0.2);
+
+    osc.start(this.audioContext.currentTime);
+    osc.stop(this.audioContext.currentTime + 0.2);
+};
+
+// Panicked narrator voice (faster, higher)
+SoundManager.prototype.playPanickedVoice = function() {
+    if (this.muted || !this.initialized) return;
+
+    const osc = this.audioContext.createOscillator();
+    const gain = this.audioContext.createGain();
+
+    osc.connect(gain);
+    gain.connect(this.sfxGain);
+
+    osc.type = 'square';
+    osc.frequency.value = 600 + Math.random() * 200; // Higher, frantic
+
+    gain.gain.setValueAtTime(0.2, this.audioContext.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + 0.08);
+
+    osc.start(this.audioContext.currentTime);
+    osc.stop(this.audioContext.currentTime + 0.08);
+};
+
+// Deep sinister growl
+SoundManager.prototype.playGrowl = function() {
+    if (this.muted || !this.initialized) return;
+
+    // Create noise buffer for growl
+    const duration = 1.5;
+    const bufferSize = this.audioContext.sampleRate * duration;
+    const buffer = this.audioContext.createBuffer(1, bufferSize, this.audioContext.sampleRate);
+    const data = buffer.getChannelData(0);
+
+    // Generate rumbling noise
+    for (let i = 0; i < bufferSize; i++) {
+        data[i] = (Math.random() * 2 - 1) * Math.sin(i * 0.001);
+    }
+
+    const noise = this.audioContext.createBufferSource();
+    const gain = this.audioContext.createGain();
+    const filter = this.audioContext.createBiquadFilter();
+
+    noise.buffer = buffer;
+    noise.connect(filter);
+    filter.connect(gain);
+    gain.connect(this.sfxGain);
+
+    filter.type = 'lowpass';
+    filter.frequency.value = 150;
+
+    gain.gain.setValueAtTime(0.3, this.audioContext.currentTime);
+    gain.gain.linearRampToValueAtTime(0.4, this.audioContext.currentTime + 0.5);
+    gain.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + duration);
+
+    noise.start(this.audioContext.currentTime);
 };
 
 // Don't load level immediately - start in menu state
@@ -2609,10 +2725,52 @@ function gameLoop() {
             }
         }
 
-        // After fully black, complete level
+        // After fully black, trigger Her sequence instead of level complete
         if (stage2FaintPhase === 2 && stage2CaughtTimer > 60) {
             stage2CaughtActive = false;
             stage2AlarmActive = false;
+            // Start Her sequence
+            herSequenceActive = true;
+            herSequencePhase = 0; // Black screen wait
+            herSequenceTimer = 0;
+            herDialoguePhase = 0;
+            herDialogueTimer = 0;
+            herPhoneAnswered = false;
+        }
+    }
+
+    // Handle Her sequence (Level 8 ending)
+    if (herSequenceActive) {
+        herSequenceTimer++;
+        herDialogueTimer++;
+
+        // Phase 0: Wait 5 seconds with black screen
+        if (herSequencePhase === 0 && herSequenceTimer >= 300) {
+            herSequencePhase = 1; // Phone rings
+            herSequenceTimer = 0;
+            phoneRinging = true;
+        }
+
+        // Phase 1: Phone ringing, Her speaks (before answering)
+        if (herSequencePhase === 1 && !herPhoneAnswered) {
+            // Her's pre-answer dialogue starts after 1 second of ringing
+            if (herSequenceTimer >= 60 && herDialoguePhase < herPreAnswerMessages.length) {
+                // Dialogue advances automatically every 2 seconds
+                if (herDialogueTimer >= 120) {
+                    herDialoguePhase++;
+                    herDialogueTimer = 0;
+                }
+            }
+        }
+
+        // Phase 2: Post-answer dialogue (triggered by E key in key handler)
+        if (herSequencePhase === 2) {
+            // Dialogue advances with E key (handled in advanceDialogue)
+        }
+
+        // Sequence complete
+        if (herSequencePhase === 2 && herDialoguePhase >= herPostAnswerMessages.length) {
+            herSequenceActive = false;
             levelComplete = true;
             sound.playLevelComplete();
         }
@@ -2680,7 +2838,7 @@ function gameLoop() {
             level9SecondCallActive || level9ChoiceActive || level9ChoiceResponsePhase > 0 ||
             level10IntroActive || isPeeking ||
             stage2IntroActive || stage2ChoiceActive || stage2ResponseActive || stage2LandingActive ||
-            stage2CaughtActive;
+            stage2CaughtActive || herSequenceActive;
         if (!isInDialogue) {
             player.update(platforms);
 
@@ -3554,6 +3712,31 @@ function drawPhoneInteraction() {
         }
     }
 
+    // Draw Her sequence (Level 8 ending)
+    if (herSequenceActive) {
+        // Keep screen black
+        ctx.fillStyle = '#000000';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Phase 1: Phone ringing with Her's pre-answer dialogue at TOP
+        if (herSequencePhase === 1 && !herPhoneAnswered) {
+            if (herDialoguePhase < herPreAnswerMessages.length) {
+                const message = herPreAnswerMessages[herDialoguePhase];
+                drawHerDialogueTop(message.speaker, message.text, herDialogueTimer);
+            }
+        }
+
+        // Phase 2: Post-answer dialogue
+        if (herSequencePhase === 2 && herDialoguePhase < herPostAnswerMessages.length) {
+            const message = herPostAnswerMessages[herDialoguePhase];
+            if (message.speaker === 'Her') {
+                drawHerDialogueTop(message.speaker, message.text, herDialogueTimer, message.growl);
+            } else {
+                drawHerSequenceDialogue(message.speaker, message.text, herDialogueTimer, message);
+            }
+        }
+    }
+
     // Draw Level 10 peek view (overlays everything)
     // Player must press Enter/E to advance peek dialogue
     if (isPeeking && currentPeekPoint) {
@@ -3671,6 +3854,122 @@ function drawStage2Choices() {
     ctx.textAlign = 'right';
     ctx.fillText(`${remainingCount} remaining - Use 1/2/3/4 or Arrow keys, Enter to select`, boxX + boxWidth - 15, boxY + boxHeight - 8);
     ctx.textAlign = 'left';
+}
+
+// Draw Her's dialogue at TOP of screen with distorted effect
+function drawHerDialogueTop(speaker, text, timeInMessage, playGrowl = false) {
+    const boxWidth = 600;
+    const boxHeight = 80;
+    const boxX = (canvas.width - boxWidth) / 2;
+    const boxY = 20; // At TOP of screen
+
+    // Dark, sinister background
+    ctx.fillStyle = 'rgba(40, 0, 0, 0.95)';
+    ctx.beginPath();
+    ctx.roundRect(boxX, boxY, boxWidth, boxHeight, 8);
+    ctx.fill();
+
+    // Dark red border
+    ctx.strokeStyle = '#8b0000';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.roundRect(boxX, boxY, boxWidth, boxHeight, 8);
+    ctx.stroke();
+
+    // Speaker label - sinister color
+    ctx.fillStyle = '#8b0000';
+    ctx.font = 'bold 16px "Segoe UI", sans-serif';
+    ctx.fillText(speaker, boxX + 20, boxY + 25);
+
+    // Typewriter effect - slower, more deliberate
+    const charsToShow = Math.floor(timeInMessage / 4);
+    const displayText = text.substring(0, charsToShow);
+
+    // Play Her's distorted voice
+    if (charsToShow > 0 && charsToShow <= text.length && timeInMessage % 4 === 1) {
+        sound.playHerVoice();
+    }
+
+    // Play growl if specified
+    if (playGrowl && timeInMessage === 1) {
+        sound.playGrowl();
+    }
+
+    // Distorted text with slight shake
+    const shakeX = Math.sin(timeInMessage * 0.3) * 2;
+    const shakeY = Math.cos(timeInMessage * 0.2) * 1;
+
+    ctx.fillStyle = '#ff4444';
+    ctx.font = '20px "Segoe UI", sans-serif';
+    ctx.fillText(displayText, boxX + 20 + shakeX, boxY + 55 + shakeY);
+}
+
+// Draw Her sequence dialogue (for non-Her speakers)
+function drawHerSequenceDialogue(speaker, text, timeInMessage, options = {}) {
+    const boxWidth = 600;
+    const boxX = (canvas.width - boxWidth) / 2;
+    const boxY = canvas.height - 100;
+
+    // Adjust for enlarged text
+    let fontSize = 18;
+    let boxHeight = 80;
+    if (options.enlarged) {
+        fontSize = 32;
+        boxHeight = 100;
+    }
+
+    // Background
+    ctx.fillStyle = 'rgba(20, 20, 40, 0.95)';
+    ctx.beginPath();
+    ctx.roundRect(boxX, boxY - (options.enlarged ? 20 : 0), boxWidth, boxHeight, 8);
+    ctx.fill();
+
+    // Border
+    const borderColor = speaker === 'Narrator' ? '#4a90d9' :
+                        speaker === 'Narrator/Ping' ? '#ff6600' : '#e94560';
+    ctx.strokeStyle = borderColor;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.roundRect(boxX, boxY - (options.enlarged ? 20 : 0), boxWidth, boxHeight, 8);
+    ctx.stroke();
+
+    // Speaker label
+    ctx.fillStyle = borderColor;
+    ctx.font = 'bold 14px "Segoe UI", sans-serif';
+    ctx.fillText(speaker, boxX + 20, boxY + 2 - (options.enlarged ? 20 : 0));
+
+    // Typewriter effect - faster for panicked
+    const typeSpeed = options.panicked ? 1 : 2;
+    const charsToShow = Math.floor(timeInMessage / typeSpeed);
+    const displayText = text.substring(0, charsToShow);
+
+    // Play appropriate voice
+    if (charsToShow > 0 && charsToShow <= text.length && timeInMessage % (typeSpeed + 1) === 1) {
+        if (options.panicked) {
+            sound.playPanickedVoice();
+        } else if (speaker === 'Ping' || speaker === '???') {
+            sound.playNarratorVoice(speaker);
+        } else {
+            sound.playNarratorVoice(speaker);
+        }
+    }
+
+    // Draw text
+    ctx.fillStyle = '#ffffff';
+    if (options.bold) {
+        ctx.font = `bold ${fontSize}px "Segoe UI", sans-serif`;
+    } else {
+        ctx.font = `${fontSize}px "Segoe UI", sans-serif`;
+    }
+
+    // Center enlarged text
+    if (options.enlarged) {
+        ctx.textAlign = 'center';
+        ctx.fillText(displayText, canvas.width / 2, boxY + 45);
+        ctx.textAlign = 'left';
+    } else {
+        ctx.fillText(displayText, boxX + 20, boxY + 40);
+    }
 }
 
 function drawDialogueBox(speaker, text, timeInMessage, voiceOverride = null, colorOverride = null) {
@@ -3955,6 +4254,19 @@ function advanceDialogue() {
             stage2AlarmTimer = 0;
             stage2Countdown = 10;
         }
+        return true;
+    } else if (herSequenceActive && herSequencePhase === 1 && !herPhoneAnswered) {
+        // Answer phone during Her sequence
+        herPhoneAnswered = true;
+        phoneRinging = false;
+        herSequencePhase = 2;
+        herDialoguePhase = 0;
+        herDialogueTimer = 0;
+        return true;
+    } else if (herSequenceActive && herSequencePhase === 2) {
+        // Advance Her post-answer dialogue
+        herDialoguePhase++;
+        herDialogueTimer = 0;
         return true;
     } else if (isPeeking && currentPeekPoint) {
         if (peekDialoguePhase < currentPeekPoint.dialogue.length) {
