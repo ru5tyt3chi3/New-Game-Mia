@@ -3706,7 +3706,33 @@ function drawPhoneInteraction() {
         if (herSequencePhase === 1 && !herPhoneAnswered) {
             // Draw the normal mini phone on top of black screen
             drawMiniPhone();
-            drawPhoneInteraction();
+
+            // Draw "Press E to answer" prompt (inline to avoid recursion)
+            const popUpDuration = 30;
+            const stayDuration = 150;
+            const shrinkStart = popUpDuration + stayDuration;
+
+            let promptX, promptY;
+            if (phoneRingTimer >= popUpDuration && phoneRingTimer < shrinkStart) {
+                promptX = canvas.width / 2;
+                promptY = canvas.height / 2 + 80;
+            } else {
+                promptX = canvas.width - 48;
+                promptY = canvas.height - 100;
+            }
+
+            const boxWidth = 130;
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+            ctx.beginPath();
+            ctx.roundRect(promptX - boxWidth/2, promptY - 15, boxWidth, 28, 4);
+            ctx.fill();
+
+            const pulse = (Math.sin(phoneRingTimer * 0.1) + 1) / 2;
+            ctx.fillStyle = `rgba(255, 255, 255, ${0.7 + pulse * 0.3})`;
+            ctx.font = 'bold 14px "Segoe UI", sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText("Press 'E' to answer", promptX, promptY);
+            ctx.textAlign = 'left';
         }
 
         // Phase 2: Post-answer dialogue using normal dialogue boxes
