@@ -3739,32 +3739,20 @@ function drawPhoneInteraction() {
         if (herSequencePhase === 2 && herDialoguePhase < herPostAnswerMessages.length) {
             const message = herPostAnswerMessages[herDialoguePhase];
 
-            // Determine speaker color
-            let speakerColor = null;
             if (message.speaker === 'Her') {
-                speakerColor = '#9933ff'; // Purple for Her
-            } else if (message.speaker === 'Narrator') {
-                speakerColor = '#4a90d9'; // Blue for Narrator
-            } else if (message.speaker === 'Ping') {
-                speakerColor = '#e94560'; // Red/pink for Ping
-            } else if (message.speaker === 'Narrator/Ping') {
-                speakerColor = '#ffaa00'; // Orange for both
-            }
-
-            // Use normal dialogue box
-            drawDialogueBox(message.speaker, message.text, herDialogueTimer, message.speaker, speakerColor);
-
-            // Play Her's voice for Her's lines
-            if (message.speaker === 'Her' && herDialogueTimer % 4 === 1) {
-                const charsToShow = Math.floor(herDialogueTimer / 2);
-                if (charsToShow > 0 && charsToShow <= message.text.length) {
-                    sound.playHerVoice();
+                // Her's dialogue at TOP of screen with whispery voice
+                drawHerDialogueTop(message.speaker, message.text, herDialogueTimer, message.growl);
+            } else {
+                // Other speakers use normal dialogue box at bottom
+                let speakerColor = null;
+                if (message.speaker === 'Narrator') {
+                    speakerColor = '#4a90d9'; // Blue for Narrator
+                } else if (message.speaker === 'Ping') {
+                    speakerColor = '#e94560'; // Red/pink for Ping
+                } else if (message.speaker === 'Narrator/Ping') {
+                    speakerColor = '#ffaa00'; // Orange for both
                 }
-            }
-
-            // Play growl sound if specified
-            if (message.growl && herDialogueTimer === 1) {
-                sound.playGrowl();
+                drawDialogueBox(message.speaker, message.text, herDialogueTimer, message.speaker, speakerColor);
             }
         }
     }
