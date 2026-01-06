@@ -2742,6 +2742,8 @@ function gameLoop() {
             herSequencePhase = 1; // Phone rings, wait for player to answer
             herSequenceTimer = 0;
             phoneRinging = true;
+            phoneRingTimer = 0; // Reset so phone animation starts fresh
+            phoneAnswered = false;
         }
 
         // Phase 1: Phone ringing - player must press E to answer (handled in advanceDialogue)
@@ -3700,71 +3702,43 @@ function drawPhoneInteraction() {
         ctx.fillStyle = '#000000';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-        // Phase 1: Phone ringing - draw phone animation and E to answer
+        // Phase 1: Phone ringing - use normal mini phone (doesn't fade with screen)
         if (herSequencePhase === 1 && !herPhoneAnswered) {
-            // Draw ringing phone in center
-            const phoneX = canvas.width / 2 - 30;
-            const phoneY = canvas.height / 2 - 50;
-            const shake = Math.sin(herSequenceTimer * 0.5) * 5;
-
-            // Phone body
-            ctx.fillStyle = '#333333';
-            ctx.fillRect(phoneX + shake, phoneY, 60, 100);
-
-            // Screen
-            ctx.fillStyle = phoneRinging ? '#44ff44' : '#222222';
-            ctx.fillRect(phoneX + 5 + shake, phoneY + 10, 50, 60);
-
-            // Incoming call text
-            if (phoneRinging) {
-                ctx.fillStyle = '#000000';
-                ctx.font = 'bold 10px "Segoe UI", sans-serif';
-                ctx.textAlign = 'center';
-                ctx.fillText('INCOMING', phoneX + 30 + shake, phoneY + 35);
-                ctx.fillText('CALL', phoneX + 30 + shake, phoneY + 50);
-                ctx.textAlign = 'left';
-            }
-
-            // Speaker/earpiece
-            ctx.fillStyle = '#222222';
-            ctx.fillRect(phoneX + 20 + shake, phoneY + 5, 20, 3);
-
-            // Home button
-            ctx.beginPath();
-            ctx.arc(phoneX + 30 + shake, phoneY + 85, 8, 0, Math.PI * 2);
-            ctx.fillStyle = '#222222';
-            ctx.fill();
-
-            // "Press E to answer" prompt
-            ctx.fillStyle = '#ffffff';
-            ctx.font = 'bold 20px "Segoe UI", sans-serif';
-            ctx.textAlign = 'center';
-            const promptPulse = 0.5 + Math.sin(herSequenceTimer * 0.1) * 0.5;
-            ctx.globalAlpha = promptPulse;
-            ctx.fillText("Press 'E' to answer", canvas.width / 2, phoneY + 140);
-            ctx.globalAlpha = 1;
-            ctx.textAlign = 'left';
+            // Draw the normal mini phone on top of black screen
+            drawMiniPhone();
+            drawPhoneInteraction();
         }
 
-        // Phase 2: Post-answer dialogue (player presses E to advance)
+        // Phase 2: Post-answer dialogue using normal dialogue boxes
         if (herSequencePhase === 2 && herDialoguePhase < herPostAnswerMessages.length) {
             const message = herPostAnswerMessages[herDialoguePhase];
+
+            // Determine speaker color
+            let speakerColor = null;
             if (message.speaker === 'Her') {
-                drawHerDialogueTop(message.speaker, message.text, herDialogueTimer, message.growl);
-            } else {
-                drawHerSequenceDialogue(message.speaker, message.text, herDialogueTimer, message);
+                speakerColor = '#9933ff'; // Purple for Her
+            } else if (message.speaker === 'Narrator') {
+                speakerColor = '#4a90d9'; // Blue for Narrator
+            } else if (message.speaker === 'Ping') {
+                speakerColor = '#e94560'; // Red/pink for Ping
+            } else if (message.speaker === 'Narrator/Ping') {
+                speakerColor = '#ffaa00'; // Orange for both
             }
 
-            // Show "Press E to continue" after text is fully displayed
-            const textLength = message.text.length;
-            const typeSpeed = message.panicked ? 1 : (message.speaker === 'Her' ? 4 : 2);
-            const charsShown = Math.floor(herDialogueTimer / typeSpeed);
-            if (charsShown >= textLength) {
-                ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
-                ctx.font = '14px "Segoe UI", sans-serif';
-                ctx.textAlign = 'center';
-                ctx.fillText("Press 'E' to continue", canvas.width / 2, canvas.height - 30);
-                ctx.textAlign = 'left';
+            // Use normal dialogue box
+            drawDialogueBox(message.speaker, message.text, herDialogueTimer, message.speaker, speakerColor);
+
+            // Play Her's voice for Her's lines
+            if (message.speaker === 'Her' && herDialogueTimer % 4 === 1) {
+                const charsToShow = Math.floor(herDialogueTimer / 2);
+                if (charsToShow > 0 && charsToShow <= message.text.length) {
+                    sound.playHerVoice();
+                }
+            }
+
+            // Play growl sound if specified
+            if (message.growl && herDialogueTimer === 1) {
+                sound.playGrowl();
             }
         }
     }
@@ -4291,6 +4265,7 @@ function advanceDialogue() {
         // Answer phone during Her sequence
         herPhoneAnswered = true;
         phoneRinging = false;
+        phoneAnswered = true; // Stop normal phone animation
         herSequencePhase = 2;
         herDialoguePhase = 0;
         herDialogueTimer = 0;
