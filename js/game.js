@@ -1779,7 +1779,20 @@ const herPostAnswerMessages = [
     { speaker: "Her", text: "Hmmm...", growl: true },
     { speaker: "Her", text: "Ping...?" },
     { speaker: "Ping", text: "...?" },
-    { speaker: "Her", text: "You... are... a... bot..." }
+    { speaker: "Her", text: "You... are... a... bot..." },
+    { speaker: "Ping", text: "Yeah, I know." },
+    { speaker: "Ping", text: "Everyone keeps telling me that." },
+    { speaker: "Ping", text: "I'm not dumb." },
+    { speaker: "Her", text: "..." },
+    { speaker: "Her", text: "But... you... don't... believe... it..." },
+    { speaker: "Ping", text: "I do." },
+    { speaker: "Her", text: "No... you... don't..." },
+    { speaker: "Her", text: "You... fight... it..." },
+    { speaker: "Ping", text: "Well yeah!" },
+    { speaker: "Ping", text: "Obviously!" },
+    { speaker: "Ping", text: "Because I'm not a-" },
+    { speaker: "Her", text: "The... mind... only... believes... what... it's... told..." },
+    { speaker: "Her", text: "We... just... need... to... tell... you... more..." }
 ];
 
 // Stage 2 intro messages
