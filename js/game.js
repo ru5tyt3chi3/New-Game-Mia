@@ -2818,12 +2818,7 @@ function gameLoop() {
             infirmaryFadePhase = 0; // Start with fade out (already black from Her sequence)
             infirmaryFadeTimer = 0;
             infirmaryFadeAlpha = 1; // Already fully black
-            // Set up player position in infirmary (on the floor)
-            player.x = 400;
-            player.y = 470;
-            player.velX = 0;
-            player.velY = 0;
-            player.isGrounded = true;
+            // Ping is in the cage - not controllable
         }
     }
 
@@ -2846,37 +2841,7 @@ function gameLoop() {
                 infirmaryFadeTimer = 0;
             }
         } else if (infirmaryFadePhase === 2) {
-            // Scene is active - player can move
-            // Simple ground collision for infirmary floor
-            player.velY += 0.5; // Gravity
-            player.y += player.velY;
-            player.x += player.velX;
-
-            // Ground at y = 520
-            if (player.y + player.height >= 520) {
-                player.y = 520 - player.height;
-                player.velY = 0;
-                player.isGrounded = true;
-            }
-
-            // Wall boundaries
-            if (player.x < 0) player.x = 0;
-            if (player.x + player.width > canvas.width) player.x = canvas.width - player.width;
-
-            // Handle movement input
-            if (keys['ArrowLeft'] || keys['a'] || keys['A']) {
-                player.velX = -player.speed;
-            } else if (keys['ArrowRight'] || keys['d'] || keys['D']) {
-                player.velX = player.speed;
-            } else {
-                player.velX *= 0.8; // Friction
-            }
-
-            // Jump
-            if ((keys['ArrowUp'] || keys['w'] || keys['W'] || keys[' ']) && player.isGrounded) {
-                player.velY = -12;
-                player.isGrounded = false;
-            }
+            // Scene is active - Ping is in the cage (not controllable)
         }
     }
 
@@ -4191,16 +4156,42 @@ function drawInfirmaryScene() {
     ctx.font = 'bold 14px Arial';
     ctx.fillText('EXIT', 15, 68);
 
-    // Draw the player (Ping) - only when scene is active
+    // Draw Ping inside the cage (using same model as player)
     if (infirmaryFadePhase >= 1) {
+        // Cage position for reference
+        const cageX = 420;
+        const cageY = 90;
+        const cageH = 120;
+
+        // Ping's position inside cage
+        const pingX = cageX + 70;
+        const pingY = cageY + cageH - 58; // Standing on cage floor
+        const pingW = 32;
+        const pingH = 48;
+
         // Body
         ctx.fillStyle = '#e94560';
-        ctx.fillRect(player.x, player.y, player.width, player.height);
-        // Eye
+        ctx.fillRect(pingX, pingY, pingW, pingH);
+
+        // Eye (facing left, looking sad/trapped)
         ctx.fillStyle = '#ffffff';
-        ctx.fillRect(player.x + 15, player.y + 5, 10, 8);
+        ctx.beginPath();
+        ctx.arc(pingX + 8, pingY + 15, 4, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Pupil
         ctx.fillStyle = '#1a1a2e';
-        ctx.fillRect(player.x + 18, player.y + 6, 4, 5);
+        ctx.beginPath();
+        ctx.arc(pingX + 7, pingY + 15, 2, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Sad/neutral mouth
+        ctx.strokeStyle = '#1a1a2e';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(pingX + 6, pingY + 28);
+        ctx.lineTo(pingX + 14, pingY + 28);
+        ctx.stroke();
     }
 }
 
