@@ -1795,6 +1795,14 @@ const herPostAnswerMessages = [
     { speaker: "Her", text: "We... just... need... to... tell... you... more..." }
 ];
 
+// Infirmary scene state (after Her sequence - Level 9 intro)
+let infirmarySceneActive = false;
+let infirmaryFadePhase = 0; // 0=fade out, 1=fade in, 2=scene active
+let infirmaryFadeTimer = 0;
+let infirmaryFadeAlpha = 0; // 0 to 1 for fade
+let infirmaryDoctors = []; // Array of doctor NPCs
+let infirmaryGuard = null; // Bodyguard on stairs
+
 // Stage 2 intro messages
 const stage2IntroMessages = [
     { speaker: "You", text: "Ping...?" },
@@ -2807,8 +2815,50 @@ function gameLoop() {
         // Sequence complete
         if (herSequencePhase === 2 && herDialoguePhase >= herPostAnswerMessages.length) {
             herSequenceActive = false;
-            levelComplete = true;
-            sound.playLevelComplete();
+            // Start infirmary scene transition instead of level complete
+            infirmarySceneActive = true;
+            infirmaryFadePhase = 0; // Start with fade out (already black from Her sequence)
+            infirmaryFadeTimer = 0;
+            infirmaryFadeAlpha = 1; // Already fully black
+            // Initialize infirmary NPCs
+            infirmaryDoctors = [
+                { x: 100, y: 480, direction: 1, task: 'clipboard' },
+                { x: 300, y: 480, direction: -1, task: 'examine' },
+                { x: 500, y: 480, direction: 1, task: 'walking' },
+                { x: 650, y: 480, direction: -1, task: 'computer' }
+            ];
+            infirmaryGuard = { x: 580, y: 280, direction: -1 }; // On stairs near cage
+        }
+    }
+
+    // Handle infirmary scene (transition from Her sequence to Level 9)
+    if (infirmarySceneActive) {
+        infirmaryFadeTimer++;
+
+        if (infirmaryFadePhase === 0) {
+            // Brief pause while black (1 second)
+            if (infirmaryFadeTimer >= 60) {
+                infirmaryFadePhase = 1;
+                infirmaryFadeTimer = 0;
+            }
+        } else if (infirmaryFadePhase === 1) {
+            // Fade in to infirmary
+            infirmaryFadeAlpha -= 0.02;
+            if (infirmaryFadeAlpha <= 0) {
+                infirmaryFadeAlpha = 0;
+                infirmaryFadePhase = 2;
+                infirmaryFadeTimer = 0;
+            }
+        } else if (infirmaryFadePhase === 2) {
+            // Scene is active - animate doctors
+            for (const doc of infirmaryDoctors) {
+                if (doc.task === 'walking') {
+                    doc.x += doc.direction * 0.5;
+                    if (doc.x > 550 || doc.x < 450) {
+                        doc.direction *= -1;
+                    }
+                }
+            }
         }
     }
 
@@ -2874,7 +2924,7 @@ function gameLoop() {
             level9SecondCallActive || level9ChoiceActive || level9ChoiceResponsePhase > 0 ||
             level10IntroActive || isPeeking ||
             stage2IntroActive || stage2ChoiceActive || stage2ResponseActive || stage2LandingActive ||
-            stage2CaughtActive || herSequenceActive;
+            stage2CaughtActive || herSequenceActive || infirmarySceneActive;
         if (!isInDialogue) {
             player.update(platforms);
 
@@ -3809,10 +3859,220 @@ function drawPhoneInteraction() {
         }
     }
 
+    // Draw infirmary scene (after Her sequence - transition to Level 9)
+    if (infirmarySceneActive) {
+        // Draw infirmary background
+        drawInfirmaryScene();
+
+        // Draw fade overlay
+        if (infirmaryFadeAlpha > 0) {
+            ctx.fillStyle = `rgba(0, 0, 0, ${infirmaryFadeAlpha})`;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+        }
+    }
+
     // Draw Level 10 peek view (overlays everything)
     // Player must press Enter/E to advance peek dialogue
     if (isPeeking && currentPeekPoint) {
         currentPeekPoint.drawPeekView(ctx, peekDialoguePhase, peekDialogueTimer);
+    }
+}
+
+// Draw infirmary scene with cage, stairs, guard, and doctors
+function drawInfirmaryScene() {
+    // Hospital/infirmary background - sterile white walls
+    ctx.fillStyle = '#e8e8e8';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Floor - tile pattern
+    ctx.fillStyle = '#c0c0c0';
+    ctx.fillRect(0, 520, canvas.width, 80);
+    // Tile lines
+    ctx.strokeStyle = '#a0a0a0';
+    ctx.lineWidth = 1;
+    for (let x = 0; x < canvas.width; x += 40) {
+        ctx.beginPath();
+        ctx.moveTo(x, 520);
+        ctx.lineTo(x, 600);
+        ctx.stroke();
+    }
+
+    // Back wall details - medical equipment silhouettes
+    ctx.fillStyle = '#d0d0d0';
+    ctx.fillRect(20, 400, 60, 120); // Cabinet left
+    ctx.fillRect(720, 400, 60, 120); // Cabinet right
+
+    // Medical cross on wall
+    ctx.fillStyle = '#cc0000';
+    ctx.fillRect(385, 50, 30, 80);
+    ctx.fillRect(360, 75, 80, 30);
+
+    // Suspended cage/jail above infirmary (center-right area)
+    const cageX = 480;
+    const cageY = 80;
+    const cageW = 200;
+    const cageH = 150;
+
+    // Cage suspension chains
+    ctx.strokeStyle = '#555555';
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.moveTo(cageX + 30, 0);
+    ctx.lineTo(cageX + 30, cageY);
+    ctx.moveTo(cageX + cageW - 30, 0);
+    ctx.lineTo(cageX + cageW - 30, cageY);
+    ctx.stroke();
+
+    // Cage frame
+    ctx.fillStyle = '#3a3a3a';
+    ctx.fillRect(cageX, cageY, cageW, 10); // Top
+    ctx.fillRect(cageX, cageY + cageH - 10, cageW, 10); // Bottom
+    ctx.fillRect(cageX, cageY, 10, cageH); // Left
+    ctx.fillRect(cageX + cageW - 10, cageY, 10, cageH); // Right
+
+    // Cage bars
+    ctx.strokeStyle = '#4a4a4a';
+    ctx.lineWidth = 3;
+    for (let i = 1; i < 8; i++) {
+        ctx.beginPath();
+        ctx.moveTo(cageX + i * 25, cageY + 10);
+        ctx.lineTo(cageX + i * 25, cageY + cageH - 10);
+        ctx.stroke();
+    }
+
+    // Ping inside the cage (small red figure)
+    ctx.fillStyle = '#e94560';
+    ctx.fillRect(cageX + 90, cageY + 90, 25, 40); // Body
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(cageX + 100, cageY + 95, 8, 6); // Eye
+
+    // Stairs leading up to cage (right side)
+    const stairsX = 550;
+    const stairsStartY = 520;
+    ctx.fillStyle = '#5a5a5a';
+
+    // Draw stair steps
+    for (let i = 0; i < 8; i++) {
+        const stepX = stairsX + i * 25;
+        const stepY = stairsStartY - i * 40;
+        const stepW = 50;
+        const stepH = 15;
+        ctx.fillRect(stepX, stepY, stepW, stepH);
+    }
+
+    // Railing
+    ctx.strokeStyle = '#4a4a4a';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(stairsX, stairsStartY - 30);
+    ctx.lineTo(stairsX + 200, stairsStartY - 350);
+    ctx.stroke();
+
+    // Platform at top of stairs (connects to cage)
+    ctx.fillStyle = '#5a5a5a';
+    ctx.fillRect(cageX - 30, cageY + cageH, 80, 20);
+
+    // Bodyguard on stairs (near top)
+    if (infirmaryGuard) {
+        const gx = infirmaryGuard.x;
+        const gy = infirmaryGuard.y;
+
+        // Body (dark suit)
+        ctx.fillStyle = '#1a1a2e';
+        ctx.fillRect(gx, gy, 35, 55);
+
+        // Head
+        ctx.fillStyle = '#d4a574';
+        ctx.beginPath();
+        ctx.arc(gx + 17, gy - 10, 12, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Sunglasses
+        ctx.fillStyle = '#000000';
+        ctx.fillRect(gx + 8, gy - 14, 20, 6);
+
+        // Arms crossed
+        ctx.fillStyle = '#1a1a2e';
+        ctx.fillRect(gx - 5, gy + 15, 45, 12);
+    }
+
+    // Draw doctors around the infirmary
+    for (const doc of infirmaryDoctors) {
+        drawDoctor(doc.x, doc.y, doc.direction, doc.task);
+    }
+
+    // Medical beds/tables
+    ctx.fillStyle = '#ffffff';
+    ctx.strokeStyle = '#888888';
+    ctx.lineWidth = 2;
+
+    // Bed 1
+    ctx.fillRect(50, 450, 100, 60);
+    ctx.strokeRect(50, 450, 100, 60);
+
+    // Bed 2
+    ctx.fillRect(200, 450, 100, 60);
+    ctx.strokeRect(200, 450, 100, 60);
+
+    // IV stand near bed 1
+    ctx.strokeStyle = '#888888';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(160, 400);
+    ctx.lineTo(160, 480);
+    ctx.stroke();
+    ctx.fillStyle = '#aaddff';
+    ctx.fillRect(152, 400, 16, 25);
+
+    // Computer/monitor station
+    ctx.fillStyle = '#333333';
+    ctx.fillRect(680, 430, 50, 40);
+    ctx.fillStyle = '#44ff44';
+    ctx.fillRect(685, 435, 40, 25); // Screen glow
+}
+
+// Draw a doctor NPC
+function drawDoctor(x, y, direction, task) {
+    // White coat body
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(x, y, 25, 40);
+
+    // Head
+    ctx.fillStyle = '#d4a574';
+    ctx.beginPath();
+    ctx.arc(x + 12, y - 8, 10, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Hair
+    ctx.fillStyle = '#4a3728';
+    ctx.beginPath();
+    ctx.arc(x + 12, y - 12, 8, Math.PI, 0);
+    ctx.fill();
+
+    // Face detail based on direction
+    if (direction > 0) {
+        ctx.fillStyle = '#000000';
+        ctx.fillRect(x + 14, y - 10, 3, 3); // Eye
+    } else {
+        ctx.fillStyle = '#000000';
+        ctx.fillRect(x + 8, y - 10, 3, 3); // Eye
+    }
+
+    // Task-specific details
+    if (task === 'clipboard') {
+        // Holding clipboard
+        ctx.fillStyle = '#d4a574';
+        ctx.fillRect(x + 25, y + 10, 8, 5); // Hand
+        ctx.fillStyle = '#8b7355';
+        ctx.fillRect(x + 28, y + 5, 12, 18); // Clipboard
+    } else if (task === 'examine') {
+        // Leaning pose
+        ctx.fillStyle = '#d4a574';
+        ctx.fillRect(x - 5, y + 15, 8, 5); // Hand extended
+    } else if (task === 'computer') {
+        // At computer
+        ctx.fillStyle = '#d4a574';
+        ctx.fillRect(x + 25, y + 20, 8, 5); // Hand on keyboard
     }
 }
 
