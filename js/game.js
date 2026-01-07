@@ -1800,8 +1800,6 @@ let infirmarySceneActive = false;
 let infirmaryFadePhase = 0; // 0=fade out, 1=fade in, 2=scene active
 let infirmaryFadeTimer = 0;
 let infirmaryFadeAlpha = 0; // 0 to 1 for fade
-let infirmaryDoctors = []; // Array of doctor NPCs
-let infirmaryGuard = null; // Bodyguard on stairs
 
 // Stage 2 intro messages
 const stage2IntroMessages = [
@@ -2820,14 +2818,12 @@ function gameLoop() {
             infirmaryFadePhase = 0; // Start with fade out (already black from Her sequence)
             infirmaryFadeTimer = 0;
             infirmaryFadeAlpha = 1; // Already fully black
-            // Initialize infirmary NPCs
-            infirmaryDoctors = [
-                { x: 100, y: 480, direction: 1, task: 'clipboard' },
-                { x: 300, y: 480, direction: -1, task: 'examine' },
-                { x: 500, y: 480, direction: 1, task: 'walking' },
-                { x: 650, y: 480, direction: -1, task: 'computer' }
-            ];
-            infirmaryGuard = { x: 580, y: 280, direction: -1 }; // On stairs near cage
+            // Set up player position in infirmary (on the floor)
+            player.x = 400;
+            player.y = 470;
+            player.velX = 0;
+            player.velY = 0;
+            player.isGrounded = true;
         }
     }
 
@@ -2850,14 +2846,36 @@ function gameLoop() {
                 infirmaryFadeTimer = 0;
             }
         } else if (infirmaryFadePhase === 2) {
-            // Scene is active - animate doctors
-            for (const doc of infirmaryDoctors) {
-                if (doc.task === 'walking') {
-                    doc.x += doc.direction * 0.5;
-                    if (doc.x > 550 || doc.x < 450) {
-                        doc.direction *= -1;
-                    }
-                }
+            // Scene is active - player can move
+            // Simple ground collision for infirmary floor
+            player.velY += 0.5; // Gravity
+            player.y += player.velY;
+            player.x += player.velX;
+
+            // Ground at y = 520
+            if (player.y + player.height >= 520) {
+                player.y = 520 - player.height;
+                player.velY = 0;
+                player.isGrounded = true;
+            }
+
+            // Wall boundaries
+            if (player.x < 0) player.x = 0;
+            if (player.x + player.width > canvas.width) player.x = canvas.width - player.width;
+
+            // Handle movement input
+            if (keys['ArrowLeft'] || keys['a'] || keys['A']) {
+                player.velX = -player.speed;
+            } else if (keys['ArrowRight'] || keys['d'] || keys['D']) {
+                player.velX = player.speed;
+            } else {
+                player.velX *= 0.8; // Friction
+            }
+
+            // Jump
+            if ((keys['ArrowUp'] || keys['w'] || keys['W'] || keys[' ']) && player.isGrounded) {
+                player.velY = -12;
+                player.isGrounded = false;
             }
         }
     }
@@ -3878,201 +3896,311 @@ function drawPhoneInteraction() {
     }
 }
 
-// Draw infirmary scene with cage, stairs, guard, and doctors
+// Draw infirmary scene with cage, stairs, and detailed environment
 function drawInfirmaryScene() {
-    // Hospital/infirmary background - sterile white walls
-    ctx.fillStyle = '#e8e8e8';
+    // Hospital/infirmary background - sterile walls
+    ctx.fillStyle = '#e0e5e8';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    // Floor - tile pattern
-    ctx.fillStyle = '#c0c0c0';
-    ctx.fillRect(0, 520, canvas.width, 80);
-    // Tile lines
-    ctx.strokeStyle = '#a0a0a0';
+    // Wall panel lines
+    ctx.strokeStyle = '#c8cdd0';
     ctx.lineWidth = 1;
-    for (let x = 0; x < canvas.width; x += 40) {
+    for (let x = 0; x < canvas.width; x += 120) {
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, 520);
+        ctx.stroke();
+    }
+
+    // Floor - tile pattern
+    ctx.fillStyle = '#b8bcc0';
+    ctx.fillRect(0, 520, canvas.width, 80);
+    ctx.strokeStyle = '#a0a4a8';
+    ctx.lineWidth = 1;
+    for (let x = 0; x < canvas.width; x += 50) {
         ctx.beginPath();
         ctx.moveTo(x, 520);
         ctx.lineTo(x, 600);
         ctx.stroke();
     }
-
-    // Back wall details - medical equipment silhouettes
-    ctx.fillStyle = '#d0d0d0';
-    ctx.fillRect(20, 400, 60, 120); // Cabinet left
-    ctx.fillRect(720, 400, 60, 120); // Cabinet right
-
-    // Medical cross on wall
-    ctx.fillStyle = '#cc0000';
-    ctx.fillRect(385, 50, 30, 80);
-    ctx.fillRect(360, 75, 80, 30);
-
-    // Suspended cage/jail above infirmary (center-right area)
-    const cageX = 480;
-    const cageY = 80;
-    const cageW = 200;
-    const cageH = 150;
-
-    // Cage suspension chains
-    ctx.strokeStyle = '#555555';
-    ctx.lineWidth = 4;
     ctx.beginPath();
-    ctx.moveTo(cageX + 30, 0);
-    ctx.lineTo(cageX + 30, cageY);
-    ctx.moveTo(cageX + cageW - 30, 0);
-    ctx.lineTo(cageX + cageW - 30, cageY);
+    ctx.moveTo(0, 570);
+    ctx.lineTo(canvas.width, 570);
     ctx.stroke();
 
-    // Cage frame
+    // === LEFT WALL EQUIPMENT ===
+
+    // Large storage cabinet
+    ctx.fillStyle = '#7a8a9a';
+    ctx.fillRect(15, 300, 90, 220);
+    ctx.strokeStyle = '#5a6a7a';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(15, 300, 90, 220);
+    // Cabinet doors
+    ctx.beginPath();
+    ctx.moveTo(60, 300);
+    ctx.lineTo(60, 520);
+    ctx.stroke();
+    // Handles
+    ctx.fillStyle = '#444';
+    ctx.fillRect(50, 400, 6, 20);
+    ctx.fillRect(64, 400, 6, 20);
+    // Shelf items visible through glass
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(25, 320, 25, 30);
+    ctx.fillRect(70, 325, 20, 25);
+    ctx.fillStyle = '#aaddff';
+    ctx.fillRect(30, 370, 20, 25);
+
+    // Desk with computer workstation
+    ctx.fillStyle = '#5a4a3a';
+    ctx.fillRect(120, 460, 130, 60);
+    // Desk legs
+    ctx.fillStyle = '#4a3a2a';
+    ctx.fillRect(125, 500, 12, 25);
+    ctx.fillRect(233, 500, 12, 25);
+    // Computer monitor
+    ctx.fillStyle = '#222';
+    ctx.fillRect(150, 410, 70, 55);
+    ctx.fillStyle = '#2a4a6a';
+    ctx.fillRect(155, 415, 60, 42);
+    // Monitor stand
+    ctx.fillStyle = '#333';
+    ctx.fillRect(175, 465, 30, 8);
+    // Keyboard
+    ctx.fillStyle = '#1a1a1a';
+    ctx.fillRect(145, 475, 80, 15);
+    // Mouse
+    ctx.fillStyle = '#222';
+    ctx.beginPath();
+    ctx.ellipse(235, 480, 8, 12, 0, 0, Math.PI * 2);
+    ctx.fill();
+    // Papers and folders
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(125, 462, 18, 25);
+    ctx.fillStyle = '#f5deb3';
+    ctx.fillRect(128, 458, 20, 5);
+
+    // Medical bed with equipment
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(270, 470, 110, 50);
+    ctx.strokeStyle = '#888';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(270, 470, 110, 50);
+    // Bed frame
+    ctx.fillStyle = '#666';
+    ctx.fillRect(275, 515, 10, 12);
+    ctx.fillRect(365, 515, 10, 12);
+    // Pillow
+    ctx.fillStyle = '#e8e8f0';
+    ctx.fillRect(275, 475, 35, 18);
+    // Blanket fold
+    ctx.strokeStyle = '#ddd';
+    ctx.beginPath();
+    ctx.moveTo(320, 475);
+    ctx.lineTo(320, 515);
+    ctx.stroke();
+
+    // IV stand
+    ctx.strokeStyle = '#777';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(390, 350);
+    ctx.lineTo(390, 520);
+    ctx.stroke();
+    // IV pole base
+    ctx.fillStyle = '#555';
+    ctx.fillRect(380, 510, 20, 8);
+    // IV bag
+    ctx.fillStyle = '#aaddff';
+    ctx.fillRect(382, 350, 16, 35);
+    ctx.strokeStyle = '#88bbdd';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(382, 350, 16, 35);
+    // IV tube
+    ctx.strokeStyle = '#88bbdd';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(390, 385);
+    ctx.lineTo(390, 430);
+    ctx.lineTo(380, 460);
+    ctx.stroke();
+
+    // === CENTER - SUSPENDED CAGE ===
+    const cageX = 420;
+    const cageY = 90;
+    const cageW = 170;
+    const cageH = 120;
+
+    // Suspension beams from ceiling
     ctx.fillStyle = '#3a3a3a';
-    ctx.fillRect(cageX, cageY, cageW, 10); // Top
-    ctx.fillRect(cageX, cageY + cageH - 10, cageW, 10); // Bottom
-    ctx.fillRect(cageX, cageY, 10, cageH); // Left
-    ctx.fillRect(cageX + cageW - 10, cageY, 10, cageH); // Right
+    ctx.fillRect(cageX + 25, 0, 12, cageY);
+    ctx.fillRect(cageX + cageW - 37, 0, 12, cageY);
+    // Cross beam
+    ctx.fillRect(cageX + 20, cageY - 12, cageW - 40, 12);
+
+    // Cage frame
+    ctx.fillStyle = '#2a2a2a';
+    ctx.fillRect(cageX, cageY, cageW, 10);
+    ctx.fillRect(cageX, cageY + cageH - 10, cageW, 10);
+    ctx.fillRect(cageX, cageY, 10, cageH);
+    ctx.fillRect(cageX + cageW - 10, cageY, 10, cageH);
 
     // Cage bars
-    ctx.strokeStyle = '#4a4a4a';
-    ctx.lineWidth = 3;
-    for (let i = 1; i < 8; i++) {
+    ctx.strokeStyle = '#3a3a3a';
+    ctx.lineWidth = 4;
+    for (let i = 1; i < 7; i++) {
         ctx.beginPath();
-        ctx.moveTo(cageX + i * 25, cageY + 10);
-        ctx.lineTo(cageX + i * 25, cageY + cageH - 10);
+        ctx.moveTo(cageX + 10 + i * 23, cageY + 10);
+        ctx.lineTo(cageX + 10 + i * 23, cageY + cageH - 10);
         ctx.stroke();
     }
 
-    // Ping inside the cage (small red figure)
-    ctx.fillStyle = '#e94560';
-    ctx.fillRect(cageX + 90, cageY + 90, 25, 40); // Body
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(cageX + 100, cageY + 95, 8, 6); // Eye
-
-    // Stairs leading up to cage (right side)
-    const stairsX = 550;
-    const stairsStartY = 520;
-    ctx.fillStyle = '#5a5a5a';
-
-    // Draw stair steps
-    for (let i = 0; i < 8; i++) {
-        const stepX = stairsX + i * 25;
-        const stepY = stairsStartY - i * 40;
-        const stepW = 50;
-        const stepH = 15;
-        ctx.fillRect(stepX, stepY, stepW, stepH);
+    // === STAIRS TO CAGE ===
+    const stairsX = 590;
+    ctx.fillStyle = '#4a4a4a';
+    for (let i = 0; i < 7; i++) {
+        ctx.fillRect(stairsX + i * 28, 480 - i * 45, 38, 10);
+        ctx.fillStyle = '#3a3a3a';
+        ctx.fillRect(stairsX + i * 28 + 8, 480 - i * 45 + 10, 6, 35 + i * 45);
+        ctx.fillStyle = '#4a4a4a';
     }
+    // Platform connecting to cage
+    ctx.fillStyle = '#4a4a4a';
+    ctx.fillRect(cageX + cageW - 60, cageY + cageH, 90, 12);
 
     // Railing
-    ctx.strokeStyle = '#4a4a4a';
+    ctx.strokeStyle = '#555';
     ctx.lineWidth = 3;
     ctx.beginPath();
-    ctx.moveTo(stairsX, stairsStartY - 30);
-    ctx.lineTo(stairsX + 200, stairsStartY - 350);
+    ctx.moveTo(stairsX - 5, 510);
+    ctx.lineTo(stairsX + 200, 180);
     ctx.stroke();
 
-    // Platform at top of stairs (connects to cage)
-    ctx.fillStyle = '#5a5a5a';
-    ctx.fillRect(cageX - 30, cageY + cageH, 80, 20);
+    // === RIGHT SIDE EQUIPMENT ===
 
-    // Bodyguard on stairs (near top)
-    if (infirmaryGuard) {
-        const gx = infirmaryGuard.x;
-        const gy = infirmaryGuard.y;
-
-        // Body (dark suit)
-        ctx.fillStyle = '#1a1a2e';
-        ctx.fillRect(gx, gy, 35, 55);
-
-        // Head
-        ctx.fillStyle = '#d4a574';
-        ctx.beginPath();
-        ctx.arc(gx + 17, gy - 10, 12, 0, Math.PI * 2);
-        ctx.fill();
-
-        // Sunglasses
-        ctx.fillStyle = '#000000';
-        ctx.fillRect(gx + 8, gy - 14, 20, 6);
-
-        // Arms crossed
-        ctx.fillStyle = '#1a1a2e';
-        ctx.fillRect(gx - 5, gy + 15, 45, 12);
+    // Equipment rack/server
+    ctx.fillStyle = '#3a3a3a';
+    ctx.fillRect(710, 280, 80, 240);
+    ctx.strokeStyle = '#2a2a2a';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(710, 280, 80, 240);
+    // Equipment modules
+    ctx.fillStyle = '#222';
+    ctx.fillRect(720, 295, 60, 40);
+    ctx.fillRect(720, 345, 60, 35);
+    ctx.fillRect(720, 390, 60, 40);
+    ctx.fillRect(720, 440, 60, 35);
+    // LEDs
+    ctx.fillStyle = '#0f0';
+    ctx.fillRect(725, 305, 8, 5);
+    ctx.fillRect(725, 355, 8, 5);
+    ctx.fillStyle = '#f00';
+    ctx.fillRect(740, 305, 8, 5);
+    ctx.fillStyle = '#ff0';
+    ctx.fillRect(725, 400, 8, 5);
+    // Vent holes
+    ctx.fillStyle = '#1a1a1a';
+    for (let y = 450; y < 470; y += 6) {
+        ctx.fillRect(725, y, 50, 2);
     }
 
-    // Draw doctors around the infirmary
-    for (const doc of infirmaryDoctors) {
-        drawDoctor(doc.x, doc.y, doc.direction, doc.task);
-    }
-
-    // Medical beds/tables
-    ctx.fillStyle = '#ffffff';
-    ctx.strokeStyle = '#888888';
-    ctx.lineWidth = 2;
-
-    // Bed 1
-    ctx.fillRect(50, 450, 100, 60);
-    ctx.strokeRect(50, 450, 100, 60);
-
-    // Bed 2
-    ctx.fillRect(200, 450, 100, 60);
-    ctx.strokeRect(200, 450, 100, 60);
-
-    // IV stand near bed 1
-    ctx.strokeStyle = '#888888';
-    ctx.lineWidth = 2;
+    // Workbench with microscope
+    ctx.fillStyle = '#5a4a3a';
+    ctx.fillRect(600, 470, 90, 50);
+    // Microscope
+    ctx.fillStyle = '#333';
+    ctx.fillRect(625, 430, 18, 45);
+    ctx.fillRect(618, 450, 32, 8);
+    ctx.fillStyle = '#666';
     ctx.beginPath();
-    ctx.moveTo(160, 400);
-    ctx.lineTo(160, 480);
-    ctx.stroke();
+    ctx.arc(634, 435, 10, 0, Math.PI * 2);
+    ctx.fill();
+    // Petri dishes
+    ctx.fillStyle = '#ddd';
+    ctx.beginPath();
+    ctx.ellipse(610, 480, 12, 6, 0, 0, Math.PI * 2);
+    ctx.ellipse(670, 482, 10, 5, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Medical cart
+    ctx.fillStyle = '#ccc';
+    ctx.fillRect(480, 480, 70, 40);
+    ctx.strokeStyle = '#999';
+    ctx.strokeRect(480, 480, 70, 40);
+    // Cart wheels
+    ctx.fillStyle = '#333';
+    ctx.beginPath();
+    ctx.arc(492, 525, 7, 0, Math.PI * 2);
+    ctx.arc(538, 525, 7, 0, Math.PI * 2);
+    ctx.fill();
+    // Items on cart
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(485, 468, 25, 15);
     ctx.fillStyle = '#aaddff';
-    ctx.fillRect(152, 400, 16, 25);
+    ctx.fillRect(515, 470, 30, 12);
+    ctx.fillStyle = '#faa';
+    ctx.fillRect(548, 472, 8, 10);
 
-    // Computer/monitor station
-    ctx.fillStyle = '#333333';
-    ctx.fillRect(680, 430, 50, 40);
-    ctx.fillStyle = '#44ff44';
-    ctx.fillRect(685, 435, 40, 25); // Screen glow
-}
+    // Wall decorations
+    // Medical cross
+    ctx.fillStyle = '#cc0000';
+    ctx.fillRect(200, 40, 25, 60);
+    ctx.fillRect(182, 58, 60, 25);
 
-// Draw a doctor NPC
-function drawDoctor(x, y, direction, task) {
-    // White coat body
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(x, y, 25, 40);
-
-    // Head
-    ctx.fillStyle = '#d4a574';
+    // Clock
+    ctx.fillStyle = '#fff';
     ctx.beginPath();
-    ctx.arc(x + 12, y - 8, 10, 0, Math.PI * 2);
+    ctx.arc(320, 80, 28, 0, Math.PI * 2);
     ctx.fill();
-
-    // Hair
-    ctx.fillStyle = '#4a3728';
+    ctx.strokeStyle = '#333';
+    ctx.lineWidth = 2;
+    ctx.stroke();
     ctx.beginPath();
-    ctx.arc(x + 12, y - 12, 8, Math.PI, 0);
-    ctx.fill();
+    ctx.moveTo(320, 80);
+    ctx.lineTo(320, 58);
+    ctx.moveTo(320, 80);
+    ctx.lineTo(338, 85);
+    ctx.stroke();
 
-    // Face detail based on direction
-    if (direction > 0) {
-        ctx.fillStyle = '#000000';
-        ctx.fillRect(x + 14, y - 10, 3, 3); // Eye
-    } else {
-        ctx.fillStyle = '#000000';
-        ctx.fillRect(x + 8, y - 10, 3, 3); // Eye
+    // Vent grate
+    ctx.fillStyle = '#444';
+    ctx.fillRect(50, 150, 70, 45);
+    ctx.strokeStyle = '#222';
+    ctx.lineWidth = 2;
+    for (let y = 160; y < 190; y += 8) {
+        ctx.beginPath();
+        ctx.moveTo(55, y);
+        ctx.lineTo(115, y);
+        ctx.stroke();
     }
 
-    // Task-specific details
-    if (task === 'clipboard') {
-        // Holding clipboard
-        ctx.fillStyle = '#d4a574';
-        ctx.fillRect(x + 25, y + 10, 8, 5); // Hand
-        ctx.fillStyle = '#8b7355';
-        ctx.fillRect(x + 28, y + 5, 12, 18); // Clipboard
-    } else if (task === 'examine') {
-        // Leaning pose
-        ctx.fillStyle = '#d4a574';
-        ctx.fillRect(x - 5, y + 15, 8, 5); // Hand extended
-    } else if (task === 'computer') {
-        // At computer
-        ctx.fillStyle = '#d4a574';
-        ctx.fillRect(x + 25, y + 20, 8, 5); // Hand on keyboard
+    // Biohazard warning sign
+    ctx.fillStyle = '#ff0';
+    ctx.fillRect(740, 150, 40, 40);
+    ctx.fillStyle = '#000';
+    ctx.font = 'bold 24px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText('☣', 760, 180);
+    ctx.textAlign = 'left';
+
+    // Exit sign
+    ctx.fillStyle = '#0a0';
+    ctx.fillRect(5, 50, 60, 25);
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 14px Arial';
+    ctx.fillText('EXIT', 15, 68);
+
+    // Draw the player (Ping) - only when scene is active
+    if (infirmaryFadePhase >= 1) {
+        // Body
+        ctx.fillStyle = '#e94560';
+        ctx.fillRect(player.x, player.y, player.width, player.height);
+        // Eye
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(player.x + 15, player.y + 5, 10, 8);
+        ctx.fillStyle = '#1a1a2e';
+        ctx.fillRect(player.x + 18, player.y + 6, 4, 5);
     }
 }
 
