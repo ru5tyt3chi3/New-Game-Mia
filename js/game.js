@@ -1723,8 +1723,6 @@ let stage2VentsViewed = {}; // Track which Stage 2 vents have been viewed (by id
 
 // Level 8 Stage 2 - Landing event state (when Ping lands on bottom platform)
 let stage2LandingTriggered = false;
-let stage2LandingDelayActive = false; // 5 second pause before dialogue
-let stage2LandingDelayTimer = 0;
 let stage2LandingActive = false;
 let stage2LandingPhase = 0;
 let stage2LandingTimer = 0;
@@ -1744,7 +1742,7 @@ const stage2LandingMessages = [
 // Level 8 Stage 2 - Alarm sequence state (after landing dialogue)
 let stage2AlarmActive = false;
 let stage2AlarmTimer = 0;
-let stage2AlarmDelay = 600; // 10 seconds delay (60fps * 10) before countdown starts
+let stage2AlarmDelay = 300; // 5 seconds delay (60fps * 5) before countdown starts
 let stage2CountdownStarted = false;
 let stage2Countdown = 10;
 let stage2RedFlashTimer = 0;
@@ -1998,8 +1996,6 @@ function loadStage2() {
         goal = null;
         // Reset landing event state
         stage2LandingTriggered = false;
-        stage2LandingDelayActive = false;
-        stage2LandingDelayTimer = 0;
         stage2LandingActive = false;
         stage2LandingPhase = 0;
         stage2LandingTimer = 0;
@@ -2007,7 +2003,7 @@ function loadStage2() {
         // Reset alarm sequence state
         stage2AlarmActive = false;
         stage2AlarmTimer = 0;
-        stage2AlarmDelay = 600; // 10 seconds
+        stage2AlarmDelay = 300; // 5 seconds
         stage2CountdownStarted = false;
         stage2Countdown = 10;
         stage2RedFlashTimer = 0;
@@ -2899,25 +2895,15 @@ function gameLoop() {
                 // Bottom platform is at y: 560, so player y should be around 520+ when standing on it
                 const onBottomPlatform = player.y > 480;
                 if (stage2WasInAir && player.isGrounded && onBottomPlatform) {
-                    // Player just landed on bottom platform - trigger thump and start 5 second delay
+                    // Player just landed on bottom platform - trigger thump and dialogue immediately
                     stage2LandingTriggered = true;
-                    stage2LandingDelayActive = true;
-                    stage2LandingDelayTimer = 0;
+                    stage2LandingActive = true;
+                    stage2LandingPhase = 0;
+                    stage2LandingTimer = 0;
                     sound.playThump();
                 }
                 // Track if player is in the air
                 stage2WasInAir = !player.isGrounded;
-            }
-
-            // Handle 5 second delay before confused dialogue
-            if (stage2LandingDelayActive) {
-                stage2LandingDelayTimer++;
-                if (stage2LandingDelayTimer >= 300) { // 5 seconds at 60fps
-                    stage2LandingDelayActive = false;
-                    stage2LandingActive = true;
-                    stage2LandingPhase = 0;
-                    stage2LandingTimer = 0;
-                }
             }
         }
 
